@@ -1,3 +1,5 @@
 config.ini
 build/*
 *.log
+ugoku
+ugoku.exe
