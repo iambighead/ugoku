@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/iambighead/goutils/logger"
+	"github.com/iambighead/ugoku/internal/config"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -17,10 +18,13 @@ const VERSION = "v0.0.1"
 // --------------------------------
 
 var main_logger logger.Logger
+var master_config config.MasterConfig
 
 func init() {
 	logger.Init("ugoku.log", "UGOKU_LOG_LEVEL")
 	main_logger = logger.NewLogger("main")
+
+	master_config = config.ReadConfig("config.ini", false)
 }
 
 func doDownload(sftp_client *sftp.Client, filename string, c chan int) {

@@ -6,6 +6,7 @@ require (
 	github.com/iambighead/goutils v0.0.2
 	github.com/pkg/sftp v1.13.5
 	golang.org/x/crypto v0.3.0
+	gopkg.in/ini.v1 v1.67.0
 )
 
 require (
