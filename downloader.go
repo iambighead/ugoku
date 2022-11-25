@@ -17,7 +17,7 @@ import (
 
 // --------------------------------
 
-type Downloader interface {
+type FileDownloader interface {
 	Start()
 	Stop()
 	init()
@@ -25,7 +25,7 @@ type Downloader interface {
 	download()
 }
 
-type MyDownloader struct {
+type SftpDownloader struct {
 	config.Downloader
 	started     bool
 	logger      logger.Logger
@@ -33,7 +33,7 @@ type MyDownloader struct {
 	ssh_client  *ssh.Client
 }
 
-func (dler *MyDownloader) scan() []string {
+func (dler *SftpDownloader) scan() []string {
 	var filelist []string
 	// walk a directory
 	w := dler.sftp_client.Walk(dler.SourcePath)
@@ -50,7 +50,7 @@ func (dler *MyDownloader) scan() []string {
 	return filelist
 }
 
-func (dler *MyDownloader) download(file_to_download string) {
+func (dler *SftpDownloader) download(file_to_download string) {
 
 	output_file := filepath.Join(dler.TargetPath, file_to_download)
 	dler.logger.Debug(fmt.Sprintf("Downloading file %s to %s", file_to_download, output_file))
@@ -87,13 +87,13 @@ func (dler *MyDownloader) download(file_to_download string) {
 	}
 }
 
-func (dler *MyDownloader) Stop() {
+func (dler *SftpDownloader) Stop() {
 	dler.started = false
 	dler.sftp_client.Close()
 	dler.ssh_client.Close()
 }
 
-func (dler *MyDownloader) init() {
+func (dler *SftpDownloader) init() {
 	dler.started = false
 	dler.logger = logger.NewLogger(fmt.Sprintf("downloader[%s]", dler.Name))
 
@@ -123,7 +123,7 @@ func (dler *MyDownloader) init() {
 	dler.sftp_client = sftp_client
 }
 
-func (dler *MyDownloader) Start() {
+func (dler *SftpDownloader) Start() {
 	dler.init()
 	dler.started = true
 	sleep_time := 1
@@ -148,7 +148,7 @@ func (dler *MyDownloader) Start() {
 
 func startDownloaders(master_config config.MasterConfig) {
 	for _, downloader_config := range master_config.Downloaders {
-		var dler MyDownloader
+		var dler SftpDownloader
 		dler.Downloader = downloader_config
 		dler.Start()
 	}
