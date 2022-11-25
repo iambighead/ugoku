@@ -79,7 +79,7 @@ func (dler *MyDownloader) download(file_to_download string) {
 	end_time := time.Now().UnixMilli()
 
 	time_taken := end_time - start_time
-	dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %ds, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
+	dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 
 	err = dler.sftp_client.Remove(file_to_download)
 	if err != nil {
