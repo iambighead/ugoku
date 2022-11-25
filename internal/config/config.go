@@ -21,7 +21,7 @@ type Downloader struct {
 	SourcePath   string
 	TargetPath   string
 	Enabled      bool
-	SourceServer *Server
+	SourceServer Server
 }
 
 type MasterConfig struct {
@@ -67,7 +67,7 @@ func parseSectionDownloader(cfg *ini.File, sectionList []string, config *MasterC
 			}
 			for _, server := range config.Servers {
 				if server.Name == new_downloader.Source {
-					new_downloader.SourceServer = &server
+					new_downloader.SourceServer = server
 				}
 			}
 			config.Downloaders = append(config.Downloaders, new_downloader)
