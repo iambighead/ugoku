@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -62,19 +61,22 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	start_time := time.Now().UnixMilli()
 	source, err := dler.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
 	if err != nil {
-		log.Fatal(err)
+		dler.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s", file_to_download, err.Error()))
+		return
 	}
 	defer source.Close()
 
 	destination, err := os.Create(output_file)
 	if err != nil {
-		log.Fatal(err)
+		dler.logger.Error(fmt.Sprintf("unable to create local file for output: %s: %s", output_file, err.Error()))
+		return
 	}
 	defer destination.Close()
 
 	nBytes, err := io.Copy(destination, source)
 	if err != nil {
-		log.Fatal(err)
+		dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
+		return
 	}
 	end_time := time.Now().UnixMilli()
 
@@ -83,7 +85,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 
 	err = dler.sftp_client.Remove(file_to_download)
 	if err != nil {
-		dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %x", file_to_download, err))
+		dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s", file_to_download, err.Error()))
 	}
 }
 
@@ -93,11 +95,9 @@ func (dler *SftpDownloader) Stop() {
 	dler.ssh_client.Close()
 }
 
-func (dler *SftpDownloader) init() {
-	dler.started = false
-	dler.logger = logger.NewLogger(fmt.Sprintf("downloader[%s]", dler.Name))
+func (dler *SftpDownloader) connectAndGetClients() error {
 
-	dler.logger.Info(fmt.Sprintf("connecting to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
+	dler.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
 	config := &ssh.ClientConfig{
 		User: dler.SourceServer.User,
 		Auth: []ssh.AuthMethod{
@@ -109,18 +109,31 @@ func (dler *SftpDownloader) init() {
 	ipport_str := fmt.Sprintf("%s:22", dler.SourceServer.Ip)
 	ssh_client, err := ssh.Dial("tcp", ipport_str, config)
 	if err != nil {
-		log.Fatal("Failed to dial: ", err)
+		return err
 	}
-	// defer ssh_client.Close()
-	dler.ssh_client = ssh_client
-
 	// open an SFTP session over an existing ssh connection.
 	sftp_client, err := sftp.NewClient(ssh_client)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	// defer sftp_client.Close()
+	dler.logger.Info(fmt.Sprintf("connected to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
+	dler.ssh_client = ssh_client
 	dler.sftp_client = sftp_client
+	return nil
+}
+
+func (dler *SftpDownloader) init() {
+	dler.started = false
+	dler.logger = logger.NewLogger(fmt.Sprintf("downloader[%s]", dler.Name))
+
+	for {
+		err := dler.connectAndGetClients()
+		if err == nil {
+			break
+		}
+		dler.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func (dler *SftpDownloader) Start() {
