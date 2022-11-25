@@ -163,6 +163,6 @@ func startDownloaders(master_config config.MasterConfig) {
 	for _, downloader_config := range master_config.Downloaders {
 		var dler SftpDownloader
 		dler.Downloader = downloader_config
-		dler.Start()
+		go dler.Start()
 	}
 }
