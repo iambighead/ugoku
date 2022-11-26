@@ -3,3 +3,4 @@ build/*
 *.log
 ugoku
 ugoku.exe
+dist/
