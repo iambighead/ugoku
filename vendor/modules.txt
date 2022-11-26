@@ -1,6 +1,7 @@
 # github.com/iambighead/goutils v0.0.2
 ## explicit; go 1.19
 github.com/iambighead/goutils/logger
+github.com/iambighead/goutils/utils
 # github.com/kr/fs v0.1.0
 ## explicit
 github.com/kr/fs

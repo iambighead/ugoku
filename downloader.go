@@ -16,6 +16,42 @@ import (
 
 // --------------------------------
 
+var tempfolder string
+var tempindex int
+
+func init() {
+	tempindex = 10000
+}
+
+func IncrTempIndex() {
+	tempindex++
+	if tempindex > 90000 {
+		tempindex = 10000
+	}
+}
+
+func downloadViaStaging(output_file string, source io.Reader) (int64, error) {
+	temp_filename := fmt.Sprintf("%d%d", time.Now().UnixMilli(), tempindex)
+	IncrTempIndex()
+	tempfile_path := filepath.Join(tempfolder, temp_filename)
+	tempfile, err := os.Create(tempfile_path)
+	if err != nil {
+		return 0, err
+	}
+	defer tempfile.Close()
+
+	nBytes, err := io.Copy(tempfile, source)
+	if err != nil {
+		return 0, err
+	}
+	err = os.Rename(tempfile_path, output_file)
+	if err != nil {
+		return 0, err
+	}
+	return nBytes, nil
+}
+
+// --------------------------------
 type FileDownloader interface {
 	Start()
 	Stop()
@@ -25,12 +61,14 @@ type FileDownloader interface {
 }
 
 type SftpDownloader struct {
-	config.Downloader
+	config.DownloaderConfig
 	started     bool
 	logger      logger.Logger
 	sftp_client *sftp.Client
 	ssh_client  *ssh.Client
 }
+
+// --------------------------------
 
 func (dler *SftpDownloader) scan() []string {
 	var filelist []string
@@ -55,7 +93,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	dler.logger.Debug(fmt.Sprintf("Downloading file %s to %s", file_to_download, output_file))
 
 	output_parent_folder := filepath.Dir(output_file)
-	os.MkdirAll(output_parent_folder, fs.ModeDir)
+	os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
 	dler.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
 
 	start_time := time.Now().UnixMilli()
@@ -66,14 +104,19 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	}
 	defer source.Close()
 
-	destination, err := os.Create(output_file)
-	if err != nil {
-		dler.logger.Error(fmt.Sprintf("unable to create local file for output: %s: %s", output_file, err.Error()))
-		return
-	}
-	defer destination.Close()
+	// destination, err := os.Create(output_file)
+	// if err != nil {
+	// 	dler.logger.Error(fmt.Sprintf("unable to create local file for output: %s: %s", output_file, err.Error()))
+	// 	return
+	// }
+	// defer destination.Close()
 
-	nBytes, err := io.Copy(destination, source)
+	// nBytes, err := io.Copy(destination, source)
+	// if err != nil {
+	// 	dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
+	// 	return
+	// }
+	nBytes, err := downloadViaStaging(output_file, source)
 	if err != nil {
 		dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
 		return
@@ -81,6 +124,9 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	end_time := time.Now().UnixMilli()
 
 	time_taken := end_time - start_time
+	if time_taken < 1 {
+		time_taken = 1
+	}
 	dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 
 	err = dler.sftp_client.Remove(file_to_download)
@@ -160,9 +206,10 @@ func (dler *SftpDownloader) Start() {
 }
 
 func startDownloaders(master_config config.MasterConfig) {
+	tempfolder = master_config.General.TempFolder
 	for _, downloader_config := range master_config.Downloaders {
 		var dler SftpDownloader
-		dler.Downloader = downloader_config
+		dler.DownloaderConfig = downloader_config
 		go dler.Start()
 	}
 }
