@@ -19,14 +19,6 @@ var tempfolder string
 var tempindex int
 
 func init() {
-	tempindex = 10000
-}
-
-func IncrTempIndex() {
-	tempindex++
-	if tempindex > 90000 {
-		tempindex = 10000
-	}
 }
 
 // --------------------------------
@@ -65,7 +57,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	}
 	defer source.Close()
 
-	nBytes, err := downloadViaStaging(output_file, source)
+	nBytes, err := downloadViaStaging(tempfolder, output_file, source, dler.Name)
 	if err != nil {
 		dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
 		return

@@ -11,6 +11,17 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+func init() {
+	tempindex = 10000
+}
+
+func IncrTempIndex() {
+	tempindex++
+	if tempindex > 90000 {
+		tempindex = 10000
+	}
+}
+
 func connectSftpServer(host_ip string, user string, password string) (*ssh.Client, *sftp.Client, error) {
 
 	config := &ssh.ClientConfig{
@@ -35,10 +46,10 @@ func connectSftpServer(host_ip string, user string, password string) (*ssh.Clien
 	return ssh_client, sftp_client, nil
 }
 
-func downloadViaStaging(output_file string, source io.Reader) (int64, error) {
-	temp_filename := fmt.Sprintf("%d%d", time.Now().UnixMilli(), tempindex)
+func downloadViaStaging(temp_folder string, output_file string, source io.Reader, prefix string) (int64, error) {
+	temp_filename := fmt.Sprintf("%s_%d%d", prefix, time.Now().UnixMilli(), tempindex)
 	IncrTempIndex()
-	tempfile_path := filepath.Join(tempfolder, temp_filename)
+	tempfile_path := filepath.Join(temp_folder, temp_filename)
 	tempfile, err := os.Create(tempfile_path)
 	if err != nil {
 		return 0, err
