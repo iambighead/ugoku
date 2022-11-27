@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -30,27 +29,6 @@ func IncrTempIndex() {
 	}
 }
 
-func downloadViaStaging(output_file string, source io.Reader) (int64, error) {
-	temp_filename := fmt.Sprintf("%d%d", time.Now().UnixMilli(), tempindex)
-	IncrTempIndex()
-	tempfile_path := filepath.Join(tempfolder, temp_filename)
-	tempfile, err := os.Create(tempfile_path)
-	if err != nil {
-		return 0, err
-	}
-	defer tempfile.Close()
-
-	nBytes, err := io.Copy(tempfile, source)
-	if err != nil {
-		return 0, err
-	}
-	err = os.Rename(tempfile_path, output_file)
-	if err != nil {
-		return 0, err
-	}
-	return nBytes, nil
-}
-
 // --------------------------------
 type FileDownloader interface {
 	Start()
@@ -70,23 +48,6 @@ type SftpDownloader struct {
 
 // --------------------------------
 
-func (dler *SftpDownloader) scan() []string {
-	var filelist []string
-	// walk a directory
-	w := dler.sftp_client.Walk(dler.SourcePath)
-	for w.Step() {
-		if w.Err() != nil {
-			continue
-		}
-		if !w.Stat().IsDir() {
-			filelist = append(filelist, w.Path())
-		}
-		dler.logger.Debug(fmt.Sprintf("path=%s, isDir=%t", w.Path(), w.Stat().IsDir()))
-	}
-
-	return filelist
-}
-
 func (dler *SftpDownloader) download(file_to_download string) {
 
 	output_file := filepath.Join(dler.TargetPath, file_to_download)
@@ -104,18 +65,6 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	}
 	defer source.Close()
 
-	// destination, err := os.Create(output_file)
-	// if err != nil {
-	// 	dler.logger.Error(fmt.Sprintf("unable to create local file for output: %s: %s", output_file, err.Error()))
-	// 	return
-	// }
-	// defer destination.Close()
-
-	// nBytes, err := io.Copy(destination, source)
-	// if err != nil {
-	// 	dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
-	// 	return
-	// }
 	nBytes, err := downloadViaStaging(output_file, source)
 	if err != nil {
 		dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
@@ -129,36 +78,20 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	}
 	dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 
+	dler.logger.Debug("sleep for 60s")
+	time.Sleep(60 * time.Second)
+
 	err = dler.sftp_client.Remove(file_to_download)
 	if err != nil {
 		dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s", file_to_download, err.Error()))
 	}
 }
 
-func (dler *SftpDownloader) Stop() {
-	dler.started = false
-	dler.sftp_client.Close()
-	dler.ssh_client.Close()
-}
+// --------------------------------
 
 func (dler *SftpDownloader) connectAndGetClients() error {
-
 	dler.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
-	config := &ssh.ClientConfig{
-		User: dler.SourceServer.User,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(dler.SourceServer.Password),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	ipport_str := fmt.Sprintf("%s:22", dler.SourceServer.Ip)
-	ssh_client, err := ssh.Dial("tcp", ipport_str, config)
-	if err != nil {
-		return err
-	}
-	// open an SFTP session over an existing ssh connection.
-	sftp_client, err := sftp.NewClient(ssh_client)
+	ssh_client, sftp_client, err := connectSftpServer(dler.SourceServer.Ip, dler.SourceServer.User, dler.SourceServer.Password)
 	if err != nil {
 		return err
 	}
@@ -167,6 +100,8 @@ func (dler *SftpDownloader) connectAndGetClients() error {
 	dler.sftp_client = sftp_client
 	return nil
 }
+
+// --------------------------------
 
 func (dler *SftpDownloader) init() {
 	dler.started = false
@@ -182,34 +117,26 @@ func (dler *SftpDownloader) init() {
 	}
 }
 
-func (dler *SftpDownloader) Start() {
+// --------------------------------
+
+func (dler *SftpDownloader) Stop() {
+	dler.started = false
+	dler.sftp_client.Close()
+	dler.ssh_client.Close()
+}
+
+// --------------------------------
+
+func (dler *SftpDownloader) Start(c chan string, done chan int) {
 	dler.init()
 	dler.started = true
-	sleep_time := 1
+	var file_to_download string
 	for {
-		filelist := dler.scan()
-		files_found := len(filelist)
-		dler.logger.Debug(fmt.Sprintf("scan returned %d files", files_found))
-		if files_found == 0 {
-			if sleep_time < 16 {
-				sleep_time = sleep_time * 2
-			}
-		} else {
-			sleep_time = 1
-			for _, file_to_download := range filelist {
-				dler.download(file_to_download)
-			}
-		}
-		dler.logger.Debug(fmt.Sprintf("sleep for %ds", sleep_time))
-		time.Sleep(time.Duration(sleep_time) * time.Second)
+		file_to_download = <-c
+		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
+		dler.download(file_to_download)
+		done <- 1
 	}
 }
 
-func startDownloaders(master_config config.MasterConfig) {
-	tempfolder = master_config.General.TempFolder
-	for _, downloader_config := range master_config.Downloaders {
-		var dler SftpDownloader
-		dler.DownloaderConfig = downloader_config
-		go dler.Start()
-	}
-}
+// --------------------------------
