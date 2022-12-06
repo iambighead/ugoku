@@ -1,4 +1,4 @@
-package main
+package downloader
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -16,7 +17,6 @@ import (
 // --------------------------------
 
 var tempfolder string
-var tempindex int
 
 func init() {
 }
@@ -57,7 +57,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	}
 	defer source.Close()
 
-	nBytes, err := downloadViaStaging(tempfolder, output_file, source, dler.Name)
+	nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, dler.Name)
 	if err != nil {
 		dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
 		return
@@ -83,7 +83,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 
 func (dler *SftpDownloader) connectAndGetClients() error {
 	dler.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
-	ssh_client, sftp_client, err := connectSftpServer(dler.SourceServer.Ip, dler.SourceServer.User, dler.SourceServer.Password)
+	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(dler.SourceServer.Ip, dler.SourceServer.User, dler.SourceServer.Password)
 	if err != nil {
 		return err
 	}
@@ -129,6 +129,19 @@ func (dler *SftpDownloader) Start(c chan string, done chan int) {
 		dler.download(file_to_download)
 		done <- 1
 	}
+}
+
+func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
+	tempfolder = tf
+	// make a channel
+	c := make(chan string)
+	done := make(chan int)
+	var new_downloader SftpDownloader
+	new_downloader.DownloaderConfig = downloader_config
+	go new_downloader.Start(c, done)
+	var new_scanner SftpScanner
+	new_scanner.DownloaderConfig = downloader_config
+	go new_scanner.Start(c, done)
 }
 
 // --------------------------------

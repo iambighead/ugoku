@@ -1,4 +1,4 @@
-package main
+package downloader
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -42,7 +43,7 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 			for w.Step() {
 				if scanner.started {
 					if w.Err() != nil {
-						scanner.logger.Debug(fmt.Sprintf("%s", w.Err().Error()))
+						scanner.logger.Debug(w.Err().Error())
 						continue
 					}
 					if !w.Stat().IsDir() {
@@ -73,7 +74,7 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 
 func (scanner *SftpScanner) connectAndGetClients() error {
 	scanner.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", scanner.SourceServer.Ip, scanner.SourceServer.User))
-	ssh_client, sftp_client, err := connectSftpServer(scanner.SourceServer.Ip, scanner.SourceServer.User, scanner.SourceServer.Password)
+	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(scanner.SourceServer.Ip, scanner.SourceServer.User, scanner.SourceServer.Password)
 	if err != nil {
 		return err
 	}
