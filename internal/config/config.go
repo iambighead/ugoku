@@ -19,6 +19,7 @@ type DownloaderConfig struct {
 	SourcePath   string
 	TargetPath   string
 	Enabled      bool
+	Worker       int
 	SourceServer ServerConfig
 }
 
@@ -59,6 +60,9 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 	}
 
 	for idx, downloader := range config.Downloaders {
+		if config.Downloaders[idx].Worker < 1 {
+			config.Downloaders[idx].Worker = 1
+		}
 		for _, server := range config.Servers {
 			if server.Name == downloader.Source {
 				config.Downloaders[idx].SourceServer = server

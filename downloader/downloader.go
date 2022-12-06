@@ -119,13 +119,13 @@ func (dler *SftpDownloader) Stop() {
 
 // --------------------------------
 
-func (dler *SftpDownloader) Start(c chan string, done chan int) {
+func (dler *SftpDownloader) Start(id int, c chan string, done chan int) {
 	dler.init()
 	dler.started = true
 	var file_to_download string
 	for {
 		file_to_download = <-c
-		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
+		dler.logger.Debug(fmt.Sprintf("%d: received file from channel: %s", id, file_to_download))
 		dler.download(file_to_download)
 		done <- 1
 	}
@@ -134,11 +134,14 @@ func (dler *SftpDownloader) Start(c chan string, done chan int) {
 func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	tempfolder = tf
 	// make a channel
-	c := make(chan string)
+	c := make(chan string, downloader_config.Worker)
 	done := make(chan int)
-	var new_downloader SftpDownloader
-	new_downloader.DownloaderConfig = downloader_config
-	go new_downloader.Start(c, done)
+
+	for i := 1; i < downloader_config.Worker; i++ {
+		var new_downloader SftpDownloader
+		new_downloader.DownloaderConfig = downloader_config
+		go new_downloader.Start(i, c, done)
+	}
 	var new_scanner SftpScanner
 	new_scanner.DownloaderConfig = downloader_config
 	go new_scanner.Start(c, done)

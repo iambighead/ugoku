@@ -39,6 +39,7 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 	for {
 		files_found := false
 		if scanner.started {
+			var dispatched int
 			w := scanner.sftp_client.Walk(scanner.SourcePath)
 			for w.Step() {
 				if scanner.started {
@@ -51,11 +52,19 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 						// filelist = append(filelist, w.Path())
 						newfile := w.Path()
 						scanner.logger.Debug(fmt.Sprintf("send file to channel: %s", newfile))
+						dispatched++
 						c <- newfile
 						// wait for done signal
-						<-done
 					}
 					// scanner.logger.Debug(fmt.Sprintf("path=%s, isDir=%t", w.Path(), w.Stat().IsDir()))
+				}
+			}
+
+			for {
+				<-done
+				dispatched--
+				if dispatched < 1 {
+					break
 				}
 			}
 		}
