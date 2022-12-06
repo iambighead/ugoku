@@ -1,28 +1,36 @@
 general:
   tempfolder: c:\temp
 
+# each downloader downloads 
+# from one server to a local folder
+# the source specify the name used in the
+# servers section
 downloaders:
   - 
     name: localtest1
-    source: vm163
+    source: server1
     sourcepath: ./for-download1
     targetpath: C:\Users\Downloads\ugoku-output1
     enabled: true
   - 
     name: localtest2
-    source: vm162
+    source: server2
     sourcepath: ./for-download2
     targetpath: C:\Users\Downloads\ugoku-output2
     enabled: true
 
+# each server is a unique combination of
+# ip, user, and password
+# you need another server config for another user
+# even its for the same ip
 servers:
-  - 
-    name: vm163
-    ip: 192.168.1.163
+  -
+    name: server1
+    ip: 192.168.1.1
     user: user
     password: Password
   - 
-    name: vm162
-    ip: 192.168.1.162
+    name: server2
+    ip: 192.168.1.2
     user: user
     password: Password
