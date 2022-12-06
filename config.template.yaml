@@ -1,0 +1,28 @@
+general:
+  tempfolder: c:\temp
+
+downloaders:
+  - 
+    name: localtest1
+    source: vm163
+    sourcepath: ./for-download1
+    targetpath: C:\Users\Downloads\ugoku-output1
+    enabled: true
+  - 
+    name: localtest2
+    source: vm162
+    sourcepath: ./for-download2
+    targetpath: C:\Users\Downloads\ugoku-output2
+    enabled: true
+
+servers:
+  - 
+    name: vm163
+    ip: 192.168.1.163
+    user: user
+    password: Password
+  - 
+    name: vm162
+    ip: 192.168.1.162
+    user: user
+    password: Password

@@ -41,7 +41,12 @@ func init() {
 	logger.Init("ugoku.log", "UGOKU_LOG_LEVEL")
 	main_logger = logger.NewLogger("main")
 
-	master_config = config.ReadConfig("config.ini", false)
+	var err error
+	master_config, err = config.ReadConfig("config.yaml")
+	if err != nil {
+		main_logger.Error(fmt.Sprintf("failed to read config: %v", err))
+	}
+
 }
 
 // --------------------------
