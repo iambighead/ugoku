@@ -32,6 +32,8 @@ type FileDownloader interface {
 
 type SftpDownloader struct {
 	config.DownloaderConfig
+	id          int
+	prefix      string
 	started     bool
 	logger      logger.Logger
 	sftp_client *sftp.Client
@@ -57,7 +59,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	}
 	defer source.Close()
 
-	nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, dler.Name)
+	nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, dler.prefix)
 	if err != nil {
 		dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
 		return
@@ -70,12 +72,17 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	}
 	dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 
-	dler.logger.Debug("sleep for 60s")
-	time.Sleep(60 * time.Second)
-
-	err = dler.sftp_client.Remove(file_to_download)
-	if err != nil {
-		dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s", file_to_download, err.Error()))
+	for i := 0; i < 3; i++ {
+		err = dler.sftp_client.Remove(file_to_download)
+		if err != nil {
+			dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s", file_to_download, err.Error()))
+		} else {
+			// no error, check file really removed
+			_, staterr := dler.sftp_client.Stat(file_to_download)
+			if staterr != nil {
+				break
+			}
+		}
 	}
 }
 
@@ -97,7 +104,7 @@ func (dler *SftpDownloader) connectAndGetClients() error {
 
 func (dler *SftpDownloader) init() {
 	dler.started = false
-	dler.logger = logger.NewLogger(fmt.Sprintf("downloader[%s]", dler.Name))
+	dler.logger = logger.NewLogger(fmt.Sprintf("downloader[%s:%d]", dler.Name, dler.id))
 
 	for {
 		err := dler.connectAndGetClients()
@@ -119,13 +126,14 @@ func (dler *SftpDownloader) Stop() {
 
 // --------------------------------
 
-func (dler *SftpDownloader) Start(id int, c chan string, done chan int) {
+func (dler *SftpDownloader) Start(c chan string, done chan int) {
 	dler.init()
 	dler.started = true
+	dler.prefix = fmt.Sprintf("%s%d", dler.Name, dler.id)
 	var file_to_download string
 	for {
 		file_to_download = <-c
-		dler.logger.Debug(fmt.Sprintf("%d: received file from channel: %s", id, file_to_download))
+		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
 		dler.download(file_to_download)
 		done <- 1
 	}
@@ -135,12 +143,13 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	tempfolder = tf
 	// make a channel
 	c := make(chan string, downloader_config.Worker)
-	done := make(chan int)
+	done := make(chan int, 1000)
 
-	for i := 1; i < downloader_config.Worker; i++ {
+	for i := 0; i < downloader_config.Worker; i++ {
 		var new_downloader SftpDownloader
 		new_downloader.DownloaderConfig = downloader_config
-		go new_downloader.Start(i, c, done)
+		new_downloader.id = i
+		go new_downloader.Start(c, done)
 	}
 	var new_scanner SftpScanner
 	new_scanner.DownloaderConfig = downloader_config

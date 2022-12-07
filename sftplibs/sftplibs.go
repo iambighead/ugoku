@@ -48,10 +48,7 @@ func ConnectSftpServer(host_ip string, user string, password string) (*ssh.Clien
 	return ssh_client, sftp_client, nil
 }
 
-func DownloadViaStaging(temp_folder string, output_file string, source io.Reader, prefix string) (int64, error) {
-	temp_filename := fmt.Sprintf("%s_%d%d", prefix, time.Now().UnixMilli(), tempindex)
-	IncrTempIndex()
-	tempfile_path := filepath.Join(temp_folder, temp_filename)
+func doSftpDownload(source io.Reader, tempfile_path string) (int64, error) {
 	tempfile, err := os.Create(tempfile_path)
 	if err != nil {
 		return 0, err
@@ -62,9 +59,34 @@ func DownloadViaStaging(temp_folder string, output_file string, source io.Reader
 	if err != nil {
 		return 0, err
 	}
-	err = os.Rename(tempfile_path, output_file)
+	return nBytes, nil
+}
+
+func DownloadViaStaging(temp_folder string, output_file string, source io.Reader, prefix string) (int64, error) {
+	temp_filename := fmt.Sprintf("%s_%d%d", prefix, time.Now().UnixMilli(), tempindex)
+	IncrTempIndex()
+	tempfile_path := filepath.Join(temp_folder, temp_filename)
+
+	nBytes, err := doSftpDownload(source, tempfile_path)
 	if err != nil {
 		return 0, err
 	}
+
+	// retry rename up to 3 times, 1s interval
+	var rename_err error
+	for i := 0; i < 3; i++ {
+		err = os.Rename(tempfile_path, output_file)
+		if err == nil {
+			rename_err = nil
+			break
+		}
+		rename_err = err
+		time.Sleep(1 * time.Second)
+	}
+	if rename_err != nil {
+		os.Remove(tempfile_path)
+		return 0, rename_err
+	}
+
 	return nBytes, nil
 }

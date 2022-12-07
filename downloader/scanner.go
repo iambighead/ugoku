@@ -51,8 +51,8 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 						files_found = true
 						// filelist = append(filelist, w.Path())
 						newfile := w.Path()
-						scanner.logger.Debug(fmt.Sprintf("send file to channel: %s", newfile))
 						dispatched++
+						scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d", newfile, dispatched))
 						c <- newfile
 						// wait for done signal
 					}
@@ -60,11 +60,15 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 				}
 			}
 
-			for {
-				<-done
-				dispatched--
-				if dispatched < 1 {
-					break
+			if dispatched > 0 {
+				scanner.logger.Debug(fmt.Sprintf("total dispatched = %d", dispatched))
+				for {
+					<-done
+					dispatched--
+					scanner.logger.Debug(fmt.Sprintf("received done, dispatched = %d", dispatched))
+					if dispatched < 1 {
+						break
+					}
 				}
 			}
 		}
@@ -76,7 +80,7 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 		} else {
 			sleep_time = 1
 		}
-		// scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
+		scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
 		time.Sleep(time.Duration(sleep_time) * time.Second)
 	}
 }
