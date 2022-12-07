@@ -11,11 +11,13 @@ downloaders:
     sourcepath: ./for-download1
     targetpath: C:\Users\Downloads\ugoku-output1
     enabled: true
+    worker: 1
   - name: localtest2
     source: server2
     sourcepath: ./for-download2
     targetpath: C:\Users\Downloads\ugoku-output2
     enabled: true
+    worker: 1
 
 # each server is a unique combination of
 # ip, user, and password
