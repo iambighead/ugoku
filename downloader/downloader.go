@@ -142,8 +142,8 @@ func (dler *SftpDownloader) Start(c chan string, done chan int) {
 func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	tempfolder = tf
 	// make a channel
-	c := make(chan string, downloader_config.Worker)
-	done := make(chan int, 1000)
+	c := make(chan string, downloader_config.Worker*2)
+	done := make(chan int, downloader_config.Worker*2)
 
 	for i := 0; i < downloader_config.Worker; i++ {
 		var new_downloader SftpDownloader

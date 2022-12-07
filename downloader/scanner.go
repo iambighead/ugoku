@@ -54,14 +54,21 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 						dispatched++
 						scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d", newfile, dispatched))
 						c <- newfile
-						// wait for done signal
+
+						// wait for a least one done signal if channel full
+						if dispatched >= scanner.Worker*2 {
+							scanner.logger.Debug(fmt.Sprintf("channel full (%d dispatched) wait for something done first", dispatched))
+							<-done
+							dispatched--
+							scanner.logger.Debug(fmt.Sprintf("a done received, %d dispatched now", dispatched))
+						}
 					}
 					// scanner.logger.Debug(fmt.Sprintf("path=%s, isDir=%t", w.Path(), w.Stat().IsDir()))
 				}
 			}
 
 			if dispatched > 0 {
-				scanner.logger.Debug(fmt.Sprintf("total dispatched = %d", dispatched))
+				scanner.logger.Debug(fmt.Sprintf("end of scan, wait for %d more dispatched to be done", dispatched))
 				for {
 					<-done
 					dispatched--
