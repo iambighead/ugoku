@@ -51,16 +51,21 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 						files_found = true
 						// filelist = append(filelist, w.Path())
 						newfile := w.Path()
-						dispatched++
-						scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d", newfile, dispatched))
-						c <- newfile
 
-						// wait for a least one done signal if channel full
-						if dispatched >= scanner.Worker*2 {
+						select {
+						// Put new file in the channel unless it is full
+						case c <- newfile:
+							dispatched++
+							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", newfile, dispatched, len(c), cap(c)))
+
+						default:
 							scanner.logger.Debug(fmt.Sprintf("channel full (%d dispatched) wait for something done first", dispatched))
 							<-done
 							dispatched--
-							scanner.logger.Debug(fmt.Sprintf("a done received, %d dispatched now", dispatched))
+							scanner.logger.Debug(fmt.Sprintf("done received, %d dispatched now", dispatched))
+							c <- newfile
+							dispatched++
+							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", newfile, dispatched, len(c), cap(c)))
 						}
 					}
 					// scanner.logger.Debug(fmt.Sprintf("path=%s, isDir=%t", w.Path(), w.Stat().IsDir()))
