@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
@@ -58,7 +59,8 @@ func (dler *SftpDownloader) removeSrc(file_to_download string) {
 
 func (dler *SftpDownloader) download(file_to_download string) {
 
-	output_file := filepath.Join(dler.TargetPath, file_to_download)
+	relative_download_path := strings.Replace(file_to_download, dler.SourcePath, "", 1)
+	output_file := filepath.Join(dler.TargetPath, relative_download_path)
 	dler.logger.Debug(fmt.Sprintf("Downloading file %s to %s", file_to_download, output_file))
 
 	output_parent_folder := filepath.Dir(output_file)
