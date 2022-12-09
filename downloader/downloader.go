@@ -45,7 +45,7 @@ func (dler *SftpDownloader) removeSrc(file_to_download string) {
 	for i := 0; i < 3; i++ {
 		err := dler.sftp_client.Remove(file_to_download)
 		if err != nil {
-			dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s", file_to_download, err.Error()))
+			dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s: %s", dler.Source, file_to_download, err.Error()))
 		} else {
 			// no error, check file really removed
 			_, staterr := dler.sftp_client.Stat(file_to_download)
@@ -68,7 +68,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 	start_time := time.Now().UnixMilli()
 	source, err := dler.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
 	if err != nil {
-		dler.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s", file_to_download, err.Error()))
+		dler.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s: %s", dler.Source, file_to_download, err.Error()))
 		return
 	}
 	defer source.Close()
