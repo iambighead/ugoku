@@ -6,6 +6,7 @@ import (
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/uploader"
 )
 
 const VERSION = "v0.0.1"
@@ -26,6 +27,19 @@ func startDownloaders(master_config config.MasterConfig) {
 	}
 
 	main_logger.Info(fmt.Sprintf("started %d downloaders", downloader_started))
+}
+
+func startUploaders(master_config config.MasterConfig) {
+
+	uploader_started := 0
+	for _, uploader_config := range master_config.Uploaders {
+		if uploader_config.Enabled {
+			uploader.NewUploader(uploader_config, master_config.General.TempFolder)
+			uploader_started++
+		}
+	}
+
+	main_logger.Info(fmt.Sprintf("started %d uploaders", uploader_started))
 }
 
 // --------------------------
@@ -49,6 +63,7 @@ func main() {
 	main_logger.Info(fmt.Sprintf("Ugoku started. Version %s", VERSION))
 
 	go startDownloaders(master_config)
+	go startUploaders(master_config)
 
 	<-make(chan struct{})
 }

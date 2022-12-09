@@ -22,13 +22,13 @@ func init() {
 }
 
 // --------------------------------
-type FileDownloader interface {
-	Start()
-	Stop()
-	init()
-	scan() []string
-	download()
-}
+// type FileDownloader interface {
+// 	Start()
+// 	Stop()
+// 	init()
+// 	scan() []string
+// 	download()
+// }
 
 type SftpDownloader struct {
 	config.DownloaderConfig
@@ -41,6 +41,20 @@ type SftpDownloader struct {
 }
 
 // --------------------------------
+func (dler *SftpDownloader) removeSrc(file_to_download string) {
+	for i := 0; i < 3; i++ {
+		err := dler.sftp_client.Remove(file_to_download)
+		if err != nil {
+			dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s", file_to_download, err.Error()))
+		} else {
+			// no error, check file really removed
+			_, staterr := dler.sftp_client.Stat(file_to_download)
+			if staterr != nil {
+				break
+			}
+		}
+	}
+}
 
 func (dler *SftpDownloader) download(file_to_download string) {
 
@@ -71,19 +85,6 @@ func (dler *SftpDownloader) download(file_to_download string) {
 		time_taken = 1
 	}
 	dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
-
-	for i := 0; i < 3; i++ {
-		err = dler.sftp_client.Remove(file_to_download)
-		if err != nil {
-			dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s", file_to_download, err.Error()))
-		} else {
-			// no error, check file really removed
-			_, staterr := dler.sftp_client.Stat(file_to_download)
-			if staterr != nil {
-				break
-			}
-		}
-	}
 }
 
 // --------------------------------
@@ -135,6 +136,7 @@ func (dler *SftpDownloader) Start(c chan string, done chan int) {
 		file_to_download = <-c
 		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
 		dler.download(file_to_download)
+		dler.removeSrc(file_to_download)
 		done <- 1
 	}
 }

@@ -111,7 +111,7 @@ func (scanner *SftpScanner) connectAndGetClients() error {
 
 func (scanner *SftpScanner) init() {
 	scanner.started = false
-	scanner.logger = logger.NewLogger(fmt.Sprintf("scanner[%s]", scanner.Name))
+	scanner.logger = logger.NewLogger(fmt.Sprintf("sftp-scanner[%s]", scanner.Name))
 
 	for {
 		err := scanner.connectAndGetClients()

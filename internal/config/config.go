@@ -23,6 +23,16 @@ type DownloaderConfig struct {
 	SourceServer ServerConfig
 }
 
+type UploaderConfig struct {
+	Name         string
+	Target       string
+	SourcePath   string
+	TargetPath   string
+	Enabled      bool
+	Worker       int
+	TargetServer ServerConfig
+}
+
 type DownloaderDedupConfig struct {
 	Name         string
 	Source       []string
@@ -38,6 +48,7 @@ type GeneralConfig struct {
 type MasterConfig struct {
 	Servers     []ServerConfig
 	Downloaders []DownloaderConfig
+	Uploaders   []UploaderConfig
 	General     GeneralConfig
 }
 
@@ -66,6 +77,17 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 		for _, server := range config.Servers {
 			if server.Name == downloader.Source {
 				config.Downloaders[idx].SourceServer = server
+			}
+		}
+	}
+
+	for idx, uploader := range config.Uploaders {
+		if config.Uploaders[idx].Worker < 1 {
+			config.Uploaders[idx].Worker = 1
+		}
+		for _, server := range config.Servers {
+			if server.Name == uploader.Target {
+				config.Uploaders[idx].TargetServer = server
 			}
 		}
 	}
