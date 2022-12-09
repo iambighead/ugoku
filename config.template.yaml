@@ -8,14 +8,30 @@ general:
 downloaders:
   - name: localtest1
     source: server1
+    # do not start with ./
     sourcepath: for-download1
     targetpath: C:\Users\Downloads\ugoku-output1
     enabled: true
     worker: 1
   - name: localtest2
     source: server2
+    # do not start with ./
     sourcepath: for-download2
     targetpath: C:\Users\Downloads\ugoku-output2
+    enabled: true
+    worker: 1
+
+# each uploader uploads
+# from a local folder (could be nested)
+# to a server, mirror the folder structure
+# the target specify the name used in the
+# servers section
+uploaders:
+  - name: uploader1
+    target: server1
+    sourcepath: C:\Users\Downloads\ugoku\input
+    # do not start with ./
+    targetpath: for-upload
     enabled: true
     worker: 1
 
