@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -33,6 +34,16 @@ func init() {
 // }
 
 type SftpServerSyncer struct {
+	config.SyncerConfig
+	id          int
+	prefix      string
+	started     bool
+	logger      logger.Logger
+	sftp_client *sftp.Client
+	ssh_client  *ssh.Client
+}
+
+type SftpLocalSyncer struct {
 	config.SyncerConfig
 	id          int
 	prefix      string
@@ -165,8 +176,110 @@ func (syncer *SftpServerSyncer) Start(c chan downloader.FileObj, done chan int) 
 	}
 }
 
-func NewSyncer(syncer_config config.SyncerConfig, tf string) {
-	tempfolder = tf
+// =============================================
+
+func (syncer *SftpLocalSyncer) upload(file_to_upload string) {
+
+	upload_source_relative_path := strings.Replace(file_to_upload, syncer.LocalPath, "", 1)
+	output_file := filepath.Join(syncer.ServerPath, upload_source_relative_path)
+	syncer.logger.Debug(fmt.Sprintf("Uploading file %s to %s:%s", file_to_upload, syncer.Server, output_file))
+
+	output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
+	output_file = strings.ReplaceAll(output_file, "\\", "/")
+	err := syncer.sftp_client.MkdirAll(output_parent_folder)
+	if err != nil {
+		syncer.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", syncer.Server, output_parent_folder, err.Error()))
+		return
+	}
+	syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+
+	start_time := time.Now().UnixMilli()
+	source, err := os.OpenFile(file_to_upload, os.O_RDONLY, 0644)
+	if err != nil {
+		syncer.logger.Error(fmt.Sprintf("unable to open local file: %s: %s", file_to_upload, err.Error()))
+		return
+	}
+	defer source.Close()
+
+	// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, syncer.prefix)
+	target, openerr := syncer.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
+	if openerr != nil {
+		syncer.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", syncer.Server, output_file, err.Error()))
+		return
+	}
+	defer target.Close()
+
+	nBytes, err := io.Copy(target, source)
+	if err != nil {
+		syncer.logger.Error(fmt.Sprintf("error uploading file: %s: %s", file_to_upload, err.Error()))
+		return
+	}
+	end_time := time.Now().UnixMilli()
+
+	time_taken := end_time - start_time
+	if time_taken < 1 {
+		time_taken = 1
+	}
+	syncer.logger.Info(fmt.Sprintf("uploaded %s with %d bytes in %d ms, %.1f mbps", file_to_upload, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
+}
+
+// --------------------------------
+
+func (syncer *SftpLocalSyncer) connectAndGetClients() error {
+	syncer.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", syncer.SyncServer.Ip, syncer.SyncServer.User))
+	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(syncer.SyncServer.Ip, syncer.SyncServer.User, syncer.SyncServer.Password)
+	if err != nil {
+		return err
+	}
+	syncer.logger.Info(fmt.Sprintf("connected to server %s with user %s", syncer.SyncServer.Ip, syncer.SyncServer.User))
+	syncer.ssh_client = ssh_client
+	syncer.sftp_client = sftp_client
+	return nil
+}
+
+// --------------------------------
+
+func (syncer *SftpLocalSyncer) init() {
+	syncer.started = false
+	syncer.logger = logger.NewLogger(fmt.Sprintf("uploader[%s:%d]", syncer.Name, syncer.id))
+
+	for {
+		err := syncer.connectAndGetClients()
+		if err == nil {
+			break
+		}
+		syncer.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// --------------------------------
+
+func (syncer *SftpLocalSyncer) Stop() {
+	syncer.started = false
+	syncer.sftp_client.Close()
+	syncer.ssh_client.Close()
+}
+
+// --------------------------------
+
+func (syncer *SftpLocalSyncer) Start(c chan downloader.FileObj, done chan int) {
+	syncer.init()
+	syncer.started = true
+	syncer.prefix = fmt.Sprintf("%s%d", syncer.Name, syncer.id)
+	for {
+		fo := <-c
+		syncer.logger.Debug(fmt.Sprintf("received file from channel: %s", fo.Path))
+		syncer.upload(fo.Path)
+		// syncer.removeSrc(file_to_upload)
+		done <- 1
+	}
+}
+
+// -------------------------
+
+func startSyncServer(syncer_config config.SyncerConfig) {
+
 	// make a channel
 	c := make(chan downloader.FileObj, syncer_config.Worker*2)
 	done := make(chan int, syncer_config.Worker*2)
@@ -193,6 +306,47 @@ func NewSyncer(syncer_config config.SyncerConfig, tf string) {
 
 	new_scanner.DownloaderConfig = proxyconfig
 	go new_scanner.Start(c, done)
+}
+
+func startSyncLocal(syncer_config config.SyncerConfig) {
+
+	// make a channel
+	c := make(chan downloader.FileObj, syncer_config.Worker*2)
+	done := make(chan int, syncer_config.Worker*2)
+
+	for i := 0; i < syncer_config.Worker; i++ {
+		var new_server_syncer SftpLocalSyncer
+		new_server_syncer.SyncerConfig = syncer_config
+		new_server_syncer.id = i
+		go new_server_syncer.Start(c, done)
+	}
+
+	var proxyconfig config.DownloaderConfig
+	proxyconfig.Name = syncer_config.Name
+	proxyconfig.Source = syncer_config.Server
+	proxyconfig.SourceServer = syncer_config.SyncServer
+	proxyconfig.SourcePath = syncer_config.ServerPath
+
+	var new_scanner downloader.SftpScanner
+
+	new_scanner.Default_sleep_time = 60
+	if syncer_config.SleepInterval > 0 {
+		new_scanner.Default_sleep_time = syncer_config.SleepInterval
+	}
+
+	new_scanner.DownloaderConfig = proxyconfig
+	go new_scanner.Start(c, done)
+}
+
+func NewSyncer(syncer_config config.SyncerConfig, tf string) {
+	tempfolder = tf
+
+	switch syncer_config.Mode {
+	case "server":
+		startSyncServer(syncer_config)
+	case "local":
+		startSyncLocal(syncer_config)
+	}
 }
 
 // --------------------------------
