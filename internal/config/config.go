@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -33,14 +34,26 @@ type UploaderConfig struct {
 	TargetServer ServerConfig
 }
 
-type DownloaderDedupConfig struct {
-	Name         string
-	Source       []string
-	SourcePath   []string
-	TargetPath   string
-	Enabled      bool
-	SourceServer []ServerConfig
+type SyncerConfig struct {
+	Name          string
+	Server        string
+	ServerPath    string
+	LocalPath     string
+	Mode          string
+	Enabled       bool
+	SleepInterval int
+	Worker        int
+	SyncServer    ServerConfig
 }
+
+// type DownloaderDedupConfig struct {
+// 	Name         string
+// 	Source       []string
+// 	SourcePath   []string
+// 	TargetPath   string
+// 	Enabled      bool
+// 	SourceServer []ServerConfig
+// }
 
 type GeneralConfig struct {
 	TempFolder string
@@ -49,6 +62,7 @@ type MasterConfig struct {
 	Servers     []ServerConfig
 	Downloaders []DownloaderConfig
 	Uploaders   []UploaderConfig
+	Syncers     []SyncerConfig
 	General     GeneralConfig
 }
 
@@ -88,6 +102,27 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 		for _, server := range config.Servers {
 			if server.Name == uploader.Target {
 				config.Uploaders[idx].TargetServer = server
+			}
+		}
+	}
+
+	for idx, syncer := range config.Syncers {
+		if config.Syncers[idx].Worker < 1 {
+			config.Syncers[idx].Worker = 1
+		}
+
+		config.Syncers[idx].Mode = strings.ToLower(config.Syncers[idx].Mode)
+		switch config.Syncers[idx].Mode {
+		case "server":
+		case "local":
+		case "twoway":
+		default:
+			config.Syncers[idx].Mode = "server"
+		}
+
+		for _, server := range config.Servers {
+			if server.Name == syncer.Server {
+				config.Syncers[idx].SyncServer = server
 			}
 		}
 	}

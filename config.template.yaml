@@ -1,39 +1,54 @@
 general:
   tempfolder: c:\temp
 
-# each downloader downloads
-# from one server to a local folder
-# the source specify the name used in the
-# servers section
+# Defined a list of downloaders.
+# Each downloader downloads from one server to a local folder.
+# Source file downloaded will be removed from sftp server
+# The source specify the server name used in the
+# servers section.
 downloaders:
   - name: localtest1
     source: server1
     # do not start with ./
     sourcepath: for-download1
     targetpath: C:\Users\Downloads\ugoku-output1
-    enabled: true
     worker: 1
+    enabled: true
   - name: localtest2
     source: server2
     # do not start with ./
     sourcepath: for-download2
     targetpath: C:\Users\Downloads\ugoku-output2
-    enabled: true
     worker: 1
+    enabled: false
 
-# each uploader uploads
-# from a local folder (could be nested)
-# to a server, mirror the folder structure
-# the target specify the name used in the
-# servers section
+# Each uploader uploads from a local folder (could be nested)
+# to a server, mirroring the folder structure.
+# Source file uploaded will be removed from local folder
+# The target specify the server name used in the servers section
 uploaders:
   - name: uploader1
     target: server1
     sourcepath: C:\Users\Downloads\ugoku\input
     # do not start with ./
     targetpath: for-upload
-    enabled: true
     worker: 1
+    enabled: true
+
+syncers:
+  - name: synctest
+    server: server1
+    serverpath: for-sync
+    localpath: C:\Users\Downloads\ugoku\sync
+    # mode can one of these, default to server
+    # - server: sync from server to local only
+    # - local: sync from local to server only
+    # - twoway: sync both way
+    mode: server
+    # scan interval in seconds
+    sleepinterval: 10
+    worker: 1
+    enabled: true
 
 # each server is a unique combination of
 # ip, user, and password

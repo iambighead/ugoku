@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"fmt"
+	"io/fs"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
@@ -27,15 +28,21 @@ func init() {
 
 type SftpScanner struct {
 	config.DownloaderConfig
-	started     bool
-	logger      logger.Logger
-	sftp_client *sftp.Client
-	ssh_client  *ssh.Client
+	started            bool
+	logger             logger.Logger
+	sftp_client        *sftp.Client
+	ssh_client         *ssh.Client
+	Default_sleep_time int
 }
 
-func (scanner *SftpScanner) scan(c chan string, done chan int) {
+type FileObj struct {
+	Path string
+	Stat fs.FileInfo
+}
+
+func (scanner *SftpScanner) scan(c chan FileObj, done chan int) {
 	// walk a directory
-	sleep_time := 1
+	sleep_time := scanner.Default_sleep_time
 	for {
 		files_found := false
 		if scanner.started {
@@ -50,22 +57,24 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 					if !w.Stat().IsDir() {
 						files_found = true
 						// filelist = append(filelist, w.Path())
-						newfile := w.Path()
+						var rf FileObj
+						rf.Path = w.Path()
+						rf.Stat = w.Stat()
 
 						select {
 						// Put new file in the channel unless it is full
-						case c <- newfile:
+						case c <- rf:
 							dispatched++
-							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", newfile, dispatched, len(c), cap(c)))
+							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", rf.Path, dispatched, len(c), cap(c)))
 
 						default:
 							scanner.logger.Debug(fmt.Sprintf("channel full (%d dispatched) wait for something done first", dispatched))
 							<-done
 							dispatched--
 							scanner.logger.Debug(fmt.Sprintf("done received, %d dispatched now", dispatched))
-							c <- newfile
+							c <- rf
 							dispatched++
-							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", newfile, dispatched, len(c), cap(c)))
+							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", rf.Path, dispatched, len(c), cap(c)))
 						}
 					}
 					// scanner.logger.Debug(fmt.Sprintf("path=%s, isDir=%t", w.Path(), w.Stat().IsDir()))
@@ -90,7 +99,7 @@ func (scanner *SftpScanner) scan(c chan string, done chan int) {
 				sleep_time = sleep_time * 2
 			}
 		} else {
-			sleep_time = 1
+			sleep_time = scanner.Default_sleep_time
 		}
 		scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
 		time.Sleep(time.Duration(sleep_time) * time.Second)
@@ -112,6 +121,9 @@ func (scanner *SftpScanner) connectAndGetClients() error {
 func (scanner *SftpScanner) init() {
 	scanner.started = false
 	scanner.logger = logger.NewLogger(fmt.Sprintf("sftp-scanner[%s]", scanner.Name))
+	if scanner.Default_sleep_time <= 0 {
+		scanner.Default_sleep_time = 1
+	}
 
 	for {
 		err := scanner.connectAndGetClients()
@@ -123,7 +135,7 @@ func (scanner *SftpScanner) init() {
 	}
 }
 
-func (scanner *SftpScanner) Start(c chan string, done chan int) {
+func (scanner *SftpScanner) Start(c chan FileObj, done chan int) {
 	scanner.init()
 	scanner.started = true
 	scanner.scan(c, done)

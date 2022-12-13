@@ -6,6 +6,7 @@ import (
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/syncer"
 	"github.com/iambighead/ugoku/uploader"
 )
 
@@ -42,6 +43,19 @@ func startUploaders(master_config config.MasterConfig) {
 	main_logger.Info(fmt.Sprintf("started %d uploaders", uploader_started))
 }
 
+func startSyncers(master_config config.MasterConfig) {
+
+	syncer_started := 0
+	for _, syncer_config := range master_config.Syncers {
+		if syncer_config.Enabled {
+			syncer.NewSyncer(syncer_config, master_config.General.TempFolder)
+			syncer_started++
+		}
+	}
+
+	main_logger.Info(fmt.Sprintf("started %d uploaders", syncer_started))
+}
+
 // --------------------------
 
 func init() {
@@ -64,6 +78,7 @@ func main() {
 
 	go startDownloaders(master_config)
 	go startUploaders(master_config)
+	go startSyncers(master_config)
 
 	<-make(chan struct{})
 }
