@@ -1,0 +1,99 @@
+version: '3'
+
+tasks:
+  release:
+    preconditions: 
+      - sh: "[ '{{.VERSION}}' != '<no value>' ]"
+        msg: "Version required to release, example: $ task VERSION=v1.0.0 release"
+    deps: []
+    summary: |
+      Release Ugoku zip files
+    silent: true
+    cmds:
+      - echo releasing for {{.VERSION}}
+      - task: cleanup_build
+      - task: make_build_folders
+      - defer: {task: cleanup_build_sub}
+      - task: build
+      - task: copy_assets
+      - task: gen_zip_files
+      - task: end_of_release
+      
+
+  end_of_release:
+    silent: true
+    cmds:
+      - echo release done, check build folder for zip files
+
+  build:
+    summary: |
+      Build ugoku for windows and linux platforms
+    silent: true
+    cmds:
+      - task: build_windows
+      - task: build_linux
+      - GOOS=linux CGO_ENABLED=0 go build -v
+
+  build_windows:
+    silent: true
+    cmds:
+      - echo building for windows
+      - GOOS=windows CGO_ENABLED=0 go build -v
+
+  build_linux:
+    silent: true
+    cmds:
+      - echo building for linux
+      - GOOS=linux CGO_ENABLED=0 go build -v
+
+  cleanup_build:
+    silent: true
+    cmds:
+      - echo cleanup build folder
+      - rm -rf build
+
+  cleanup_build_sub:
+    silent: true
+    cmds:
+      - echo cleanup build sub folders
+      - rm -rf build/win
+      - rm -rf build/linux
+
+  make_build_folders:
+    silent: true
+    cmds:
+      - echo make build folders
+      - mkdir -p build/win
+      - mkdir -p build/linux
+
+  copy_assets:
+    silent: true
+    cmds:
+      - task: copy_windows_assets
+      - task: copy_linux_assets
+
+  copy_windows_assets:
+    silent: true
+    cmds:
+      - echo copying assets for windows
+      - mv ugoku.exe build/win/
+      - cp config.template.yaml build/win/config.template.yaml
+      - cp config.template.yaml build/win/config.yaml
+
+  copy_linux_assets:
+    silent: true
+    cmds:
+      - echo copying assets for linux
+      - mv ugoku build/linux/
+      - cp config.template.yaml build/linux/config.template.yaml
+      - cp config.template.yaml build/linux/config.yaml
+
+  gen_zip_files:
+    silent: true
+    cmds:
+      - echo generating zip for windows build
+      - 7z a build/ugoku-win-{{.VERSION}}.zip build/win/* > /dev/null
+      - echo generating zip for linux build
+      - 7z a build/ugoku-linux-{{.VERSION}}.zip build/linux/* > /dev/null
+
+      
