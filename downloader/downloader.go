@@ -65,7 +65,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 
 	output_parent_folder := filepath.Dir(output_file)
 	os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
-	dler.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+	// dler.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
 
 	start_time := time.Now().UnixMilli()
 	source, err := dler.sftp_client.OpenFile(file_to_download, os.O_RDONLY)

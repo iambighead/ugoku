@@ -32,16 +32,17 @@ func (syncer *SftpLocalSyncer) uploadable(file_to_download string, output_file s
 	if err != nil {
 		return true
 	}
-	syncer.logger.Debug(fmt.Sprintf("uploadable: found %s", output_file))
+	// syncer.logger.Debug(fmt.Sprintf("uploadable: found %s", output_file))
 	remote_size := remote_stat.Size()
 	local_size := stat.Size()
 	if local_size != remote_size {
+		// syncer.logger.Debug(fmt.Sprintf("uploadable: %s size different %d %d", output_file, remote_size, local_size))
 		return true
 	}
-	syncer.logger.Debug(fmt.Sprintf("uploadable: %s size same %d %d", output_file, remote_size, local_size))
+	// syncer.logger.Debug(fmt.Sprintf("uploadable: %s size same %d %d", output_file, remote_size, local_size))
 	remote_modtime := remote_stat.ModTime().Unix()
 	local_modtime := stat.ModTime().Unix()
-	syncer.logger.Debug(fmt.Sprintf("uploadable: %s time %d %d", output_file, remote_modtime, local_modtime))
+	// syncer.logger.Debug(fmt.Sprintf("uploadable: %s time %d %d", output_file, remote_modtime, local_modtime))
 	return local_modtime != remote_modtime
 }
 
@@ -53,7 +54,7 @@ func (syncer *SftpLocalSyncer) upload(file_to_upload string, output_file string)
 		syncer.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", syncer.Server, output_parent_folder, err.Error()))
 		return
 	}
-	syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+	// syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
 
 	start_time := time.Now().UnixMilli()
 	source, err := os.OpenFile(file_to_upload, os.O_RDONLY, 0644)
@@ -64,7 +65,8 @@ func (syncer *SftpLocalSyncer) upload(file_to_upload string, output_file string)
 	defer source.Close()
 
 	// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, syncer.prefix)
-	target, openerr := syncer.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
+	// target, openerr := syncer.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
+	target, openerr := syncer.sftp_client.Create(output_file)
 	if openerr != nil {
 		syncer.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", syncer.Server, output_file, err.Error()))
 		return

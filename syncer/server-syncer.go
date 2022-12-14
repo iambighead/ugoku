@@ -47,7 +47,7 @@ func (syncer *SftpServerSyncer) download(file_to_download string, output_file st
 
 	output_parent_folder := filepath.Dir(output_file)
 	os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
-	syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+	// syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
 
 	start_time := time.Now().UnixMilli()
 	source, err := syncer.sftp_client.OpenFile(file_to_download, os.O_RDONLY)

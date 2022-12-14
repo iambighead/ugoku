@@ -80,7 +80,7 @@ func startSyncLocal(syncer_config config.SyncerConfig) {
 		new_scanner.Default_sleep_time = syncer_config.SleepInterval
 	}
 	new_scanner.UploaderConfig = proxyconfig
-	go new_scanner.Start(c, done)
+	go new_scanner.StartWithWatcher(c, done)
 }
 
 func NewSyncer(syncer_config config.SyncerConfig, tf string) {

@@ -71,7 +71,7 @@ func (uper *SftpUploader) upload(file_to_upload string) {
 		uper.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", uper.Target, output_parent_folder, err.Error()))
 		return
 	}
-	uper.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+	// uper.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
 
 	start_time := time.Now().UnixMilli()
 	source, err := os.OpenFile(file_to_upload, os.O_RDONLY, 0644)
@@ -82,7 +82,8 @@ func (uper *SftpUploader) upload(file_to_upload string) {
 	defer source.Close()
 
 	// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, uper.prefix)
-	target, openerr := uper.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
+	// target, openerr := uper.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
+	target, openerr := uper.sftp_client.Create(output_file)
 	if openerr != nil {
 		uper.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", uper.Target, output_file, err.Error()))
 		return
