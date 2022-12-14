@@ -142,5 +142,8 @@ func (scanner *SftpScanner) Start(c chan FileObj, done chan int) {
 }
 
 func (scanner *SftpScanner) Stop(c chan string) {
+	scanner.logger.Info("stopping")
 	scanner.started = false
+	scanner.sftp_client.Close()
+	scanner.ssh_client.Close()
 }

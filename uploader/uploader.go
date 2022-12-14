@@ -143,13 +143,13 @@ func (uper *SftpUploader) Stop() {
 
 // --------------------------------
 
-func (uper *SftpUploader) Start(c chan string, done chan int) {
+func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 	uper.init()
 	uper.started = true
 	uper.prefix = fmt.Sprintf("%s%d", uper.Name, uper.id)
 	var file_to_upload string
 	for {
-		file_to_upload = <-c
+		file_to_upload = (<-c).Path
 		uper.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_upload))
 		uper.upload(file_to_upload)
 		uper.removeSrc(file_to_upload)
@@ -160,7 +160,7 @@ func (uper *SftpUploader) Start(c chan string, done chan int) {
 func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
 	// tempfolder = tf
 	// make a channel
-	c := make(chan string, uploaderer_config.Worker*2)
+	c := make(chan FileObj, uploaderer_config.Worker*2)
 	done := make(chan int, uploaderer_config.Worker*2)
 
 	for i := 0; i < uploaderer_config.Worker; i++ {
