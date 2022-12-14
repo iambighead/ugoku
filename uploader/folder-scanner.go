@@ -25,23 +25,29 @@ func init() {
 // 	scan() []string
 // }
 
-type FolderScanner struct {
-	config.UploaderConfig
-	started            bool
-	logger             logger.Logger
-	Default_sleep_time int
-	LocalFolderMap     map[string]fs.FileInfo
-}
-
 type FileObj struct {
 	Path string
 	Stat fs.FileInfo
 }
 
+type FileLookupObj struct {
+	Pass int
+	Stat fs.FileInfo
+}
+type FolderScanner struct {
+	config.UploaderConfig
+	started            bool
+	logger             logger.Logger
+	Default_sleep_time int
+	LocalFolderMap     map[string]FileLookupObj
+}
+
 func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_changes bool) {
 
 	sleep_time := scanner.Default_sleep_time
+	currnet_pass := 0
 	for {
+		currnet_pass = currnet_pass + 1%10
 		if scanner.started {
 			var dispatched int
 
@@ -71,19 +77,18 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 
 				can_dispatch := false
 				if watch_for_changes {
-					oldfile_stat, ok := scanner.LocalFolderMap[newfile]
+					oldfile, ok := scanner.LocalFolderMap[newfile]
 					if !ok {
 						can_dispatch = true
 					} else {
-						last_modtime := oldfile_stat.ModTime().Unix()
+						last_modtime := oldfile.Stat.ModTime().Unix()
 						now_modtime := stat.ModTime().Unix()
 						if last_modtime != now_modtime {
 							// scanner.logger.Debug(fmt.Sprintf("watchFolder: %s time %d %d", newfile, last_modtime, now_modtime))
 							can_dispatch = true
 						}
 					}
-
-					scanner.LocalFolderMap[newfile] = stat
+					scanner.LocalFolderMap[newfile] = FileLookupObj{Pass: currnet_pass, Stat: stat}
 				} else {
 					can_dispatch = true
 				}
@@ -107,6 +112,15 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 				}
 			}
 
+			for file, fo := range scanner.LocalFolderMap {
+				if fo.Pass != currnet_pass {
+					delete(scanner.LocalFolderMap, file)
+					scanner.logger.Debug(fmt.Sprintf("removed file %s", file))
+				}
+			}
+
+			scanner.logger.Debug(fmt.Sprintf("file lookup length is now %d", len(scanner.LocalFolderMap)))
+
 			if dispatched > 0 {
 				scanner.logger.Debug(fmt.Sprintf("end of scan, wait for %d more dispatched to be done", dispatched))
 				for {
@@ -127,7 +141,7 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 
 func (scanner *FolderScanner) init() {
 	scanner.started = false
-	scanner.LocalFolderMap = make(map[string]fs.FileInfo)
+	scanner.LocalFolderMap = make(map[string]FileLookupObj)
 	scanner.logger = logger.NewLogger(fmt.Sprintf("folder-scanner[%s]", scanner.Name))
 	if scanner.Default_sleep_time <= 0 {
 		scanner.Default_sleep_time = 1
