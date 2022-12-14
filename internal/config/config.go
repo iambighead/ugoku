@@ -46,6 +46,19 @@ type SyncerConfig struct {
 	SyncServer    ServerConfig
 }
 
+type StreamerConfig struct {
+	Name          string
+	Source        string
+	SourcePath    string
+	Target        string
+	TargetPath    string
+	Enabled       bool
+	SleepInterval int
+	Worker        int
+	SourceServer  ServerConfig
+	TargetServer  ServerConfig
+}
+
 // type DownloaderDedupConfig struct {
 // 	Name         string
 // 	Source       []string
@@ -63,6 +76,7 @@ type MasterConfig struct {
 	Downloaders []DownloaderConfig
 	Uploaders   []UploaderConfig
 	Syncers     []SyncerConfig
+	Streamers   []StreamerConfig
 	General     GeneralConfig
 }
 
@@ -110,6 +124,9 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 		if config.Syncers[idx].Worker < 1 {
 			config.Syncers[idx].Worker = 1
 		}
+		if config.Syncers[idx].SleepInterval < 1 {
+			config.Syncers[idx].SleepInterval = 1
+		}
 
 		config.Syncers[idx].Mode = strings.ToLower(config.Syncers[idx].Mode)
 		switch config.Syncers[idx].Mode {
@@ -123,6 +140,24 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 		for _, server := range config.Servers {
 			if server.Name == syncer.Server {
 				config.Syncers[idx].SyncServer = server
+			}
+		}
+	}
+
+	for idx, streamer := range config.Streamers {
+		if config.Streamers[idx].Worker < 1 {
+			config.Streamers[idx].Worker = 1
+		}
+		if config.Streamers[idx].SleepInterval < 1 {
+			config.Streamers[idx].SleepInterval = 1
+		}
+
+		for _, server := range config.Servers {
+			if server.Name == streamer.Source {
+				config.Streamers[idx].SourceServer = server
+			}
+			if server.Name == streamer.Target {
+				config.Streamers[idx].TargetServer = server
 			}
 		}
 	}

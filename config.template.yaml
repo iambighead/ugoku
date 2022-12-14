@@ -35,6 +35,10 @@ uploaders:
     worker: 1
     enabled: true
 
+# Each syncer sync from a source to a target,
+# without remove source files, unlike downloader/uploader.
+# It can sync from serve to local or local to server.
+# Two way sync is planned for as well
 syncers:
   - name: synctest
     server: server1
@@ -47,6 +51,20 @@ syncers:
     mode: server
     # scan interval in seconds
     sleepinterval: 10
+    worker: 1
+    enabled: true
+
+# Streamer streams files from source sftp server to another
+# sftp server, with ugoku as the bridge, without writing
+# any file locally. That is is to say this is not a store and
+# forward mechanism.
+streamers:
+  - name: streamtest
+    source: server1
+    sourcepath: for-stream-in
+    target: server2
+    targetpath: for-stream-out
+    sleepinterval: 60
     worker: 1
     enabled: true
 
