@@ -2,11 +2,20 @@
 
 ## Overview
 
-A backend sftp client written in golang. More detail to come.
+A SFTP client written in Golang. The objective is to allow automated machine to machine file transfer via SFTP.
+
+## Features
+
+- SFTP Downloader (SFTP server to local folder, files are removed after download)
+- SFTP Uploader (local folder to SFTP server, files are removed after upload)
+- Sync to Local (mirro files from SFTP server, files are not removed)
+- Sync to Server (mirror files to SFTP server, files are not removed)
+- Streamer (Server to Server transfer via Ugoku as bridge) *Coming soon
+- build in logger
 
 ## Why the name Ugoku
 
-Ugoku in Japanese means move. This app move files around, hence the name
+Ugoku in Japanese means move. This app move files around, hence the name. Bonus point it has "go" in the name.
 
 ## License
 
