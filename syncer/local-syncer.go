@@ -47,8 +47,8 @@ func (syncer *SftpLocalSyncer) uploadable(file_to_download string, output_file s
 }
 
 func (syncer *SftpLocalSyncer) upload(file_to_upload string, output_file string) {
-	syncer.logger.Debug(fmt.Sprintf("Uploading file %s to %s:%s", file_to_upload, syncer.Server, output_file))
-	output_parent_folder := filepath.Dir(output_file)
+	syncer.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s", file_to_upload, syncer.Server, output_file))
+	output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
 	err := syncer.sftp_client.MkdirAll(output_parent_folder)
 	if err != nil {
 		syncer.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", syncer.Server, output_parent_folder, err.Error()))

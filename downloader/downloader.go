@@ -61,7 +61,7 @@ func (dler *SftpDownloader) download(file_to_download string) {
 
 	relative_download_path := strings.Replace(file_to_download, dler.SourcePath, "", 1)
 	output_file := filepath.Join(dler.TargetPath, relative_download_path)
-	dler.logger.Debug(fmt.Sprintf("Downloading file %s to %s", file_to_download, output_file))
+	dler.logger.Debug(fmt.Sprintf("downloading file %s to %s", file_to_download, output_file))
 
 	output_parent_folder := filepath.Dir(output_file)
 	os.MkdirAll(output_parent_folder, fs.ModeDir|0764)

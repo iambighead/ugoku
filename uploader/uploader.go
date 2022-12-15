@@ -62,10 +62,10 @@ func (uper *SftpUploader) upload(file_to_upload string) {
 
 	upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
 	output_file := filepath.Join(uper.TargetPath, upload_source_relative_path)
-	uper.logger.Debug(fmt.Sprintf("Uploading file %s to %s:%s", file_to_upload, uper.Target, output_file))
+	output_file = strings.ReplaceAll(output_file, "\\", "/")
+	uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s", file_to_upload, uper.Target, output_file))
 
 	output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
-	output_file = strings.ReplaceAll(output_file, "\\", "/")
 	err := uper.sftp_client.MkdirAll(output_parent_folder)
 	if err != nil {
 		uper.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", uper.Target, output_parent_folder, err.Error()))

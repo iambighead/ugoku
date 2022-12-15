@@ -43,7 +43,7 @@ func (syncer *SftpServerSyncer) downloadable(file_to_download string, output_fil
 
 func (syncer *SftpServerSyncer) download(file_to_download string, output_file string) {
 
-	syncer.logger.Debug(fmt.Sprintf("Downloading file %s to %s", file_to_download, output_file))
+	syncer.logger.Debug(fmt.Sprintf("downloading file %s to %s", file_to_download, output_file))
 
 	output_parent_folder := filepath.Dir(output_file)
 	os.MkdirAll(output_parent_folder, fs.ModeDir|0764)

@@ -10,7 +10,7 @@ A SFTP client written in Golang. The objective is to allow automated machine to 
 - SFTP Uploader (local folder to SFTP server, files are removed after upload)
 - Sync to Local (mirro files from SFTP server, files are not removed)
 - Sync to Server (mirror files to SFTP server, files are not removed)
-- Streamer (Server to Server transfer via Ugoku as bridge) *Coming soon
+- Streamer (SFTP Server to Server transfer via Ugoku as bridge)
 - build in logger
 
 ## Why the name Ugoku
