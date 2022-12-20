@@ -1,6 +1,8 @@
 package downloader
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -57,36 +59,56 @@ func (dler *SftpDownloader) removeSrc(file_to_download string) {
 	}
 }
 
-func (dler *SftpDownloader) download(file_to_download string) {
+func (dler *SftpDownloader) download(file_to_download string) error {
 
-	relative_download_path := strings.Replace(file_to_download, dler.SourcePath, "", 1)
-	output_file := filepath.Join(dler.TargetPath, relative_download_path)
-	dler.logger.Debug(fmt.Sprintf("downloading file %s to %s", file_to_download, output_file))
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
 
-	output_parent_folder := filepath.Dir(output_file)
-	os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
-	// dler.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+	done := make(chan int, 1)
+	go func() {
+		relative_download_path := strings.Replace(file_to_download, dler.SourcePath, "", 1)
+		output_file := filepath.Join(dler.TargetPath, relative_download_path)
+		dler.logger.Debug(fmt.Sprintf("downloading file %s to %s", file_to_download, output_file))
 
-	start_time := time.Now().UnixMilli()
-	source, err := dler.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
-	if err != nil {
-		dler.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s: %s", dler.Source, file_to_download, err.Error()))
-		return
+		output_parent_folder := filepath.Dir(output_file)
+		os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
+		// dler.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+
+		start_time := time.Now().UnixMilli()
+		source, err := dler.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
+		if err != nil {
+			dler.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s: %s", dler.Source, file_to_download, err.Error()))
+			done <- 0
+			return
+		}
+		defer source.Close()
+
+		nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, dler.prefix)
+		if err != nil {
+			dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
+			done <- 0
+			return
+		}
+		end_time := time.Now().UnixMilli()
+
+		time_taken := end_time - start_time
+		if time_taken < 1 {
+			time_taken = 1
+		}
+		dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
+		done <- 1
+	}()
+
+	select {
+	case <-ctxTimeout.Done():
+		fmt.Printf("Context cancelled: %v\n", ctxTimeout.Err())
+		return errors.New("download timeout")
+	case result := <-done:
+		if result > 0 {
+			return nil
+		}
+		return errors.New("download failed")
 	}
-	defer source.Close()
-
-	nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, dler.prefix)
-	if err != nil {
-		dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
-		return
-	}
-	end_time := time.Now().UnixMilli()
-
-	time_taken := end_time - start_time
-	if time_taken < 1 {
-		time_taken = 1
-	}
-	dler.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 }
 
 // --------------------------------
@@ -137,8 +159,12 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 	for {
 		file_to_download = (<-c).Path
 		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
-		dler.download(file_to_download)
-		dler.removeSrc(file_to_download)
+		download_err := dler.download(file_to_download)
+		if download_err != nil {
+			dler.logger.Error(fmt.Sprintf("download error: %s", download_err.Error()))
+		} else {
+			dler.removeSrc(file_to_download)
+		}
 		done <- 1
 	}
 }
