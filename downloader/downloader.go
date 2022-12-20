@@ -61,7 +61,7 @@ func (dler *SftpDownloader) removeSrc(file_to_download string) {
 
 func (dler *SftpDownloader) download(file_to_download string) error {
 
-	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(dler.Timeout))
 	defer cancel()
 
 	done := make(chan int, 1)

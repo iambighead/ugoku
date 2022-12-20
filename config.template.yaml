@@ -13,6 +13,8 @@ downloaders:
     sourcepath: for-download1
     targetpath: C:\Users\Downloads\ugoku-output1
     worker: 1
+    #timeout in seconds, if not defined default to 60s
+    timeout: 60
     enabled: true
   - name: localtest2
     source: server2
@@ -20,6 +22,7 @@ downloaders:
     sourcepath: for-download2
     targetpath: C:\Users\Downloads\ugoku-output2
     worker: 1
+    timeout: 60
     enabled: false
 
 # Each uploader uploads from a local folder (could be nested)
@@ -33,6 +36,7 @@ uploaders:
     # do not start with ./
     targetpath: for-upload
     worker: 1
+    #timeout in seconds, if not defined default to 60s
     enabled: true
 
 # Each syncer sync from a source to a target,
