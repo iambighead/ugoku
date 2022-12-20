@@ -101,8 +101,7 @@ func (dler *SftpDownloader) download(file_to_download string) error {
 
 	select {
 	case <-ctxTimeout.Done():
-		fmt.Printf("Context cancelled: %v\n", ctxTimeout.Err())
-		return errors.New("download timeout")
+		return fmt.Errorf("download timeout: %v", ctxTimeout.Err())
 	case result := <-done:
 		if result > 0 {
 			return nil

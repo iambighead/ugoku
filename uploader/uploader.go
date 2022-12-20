@@ -1,6 +1,8 @@
 package uploader
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -58,50 +60,73 @@ func (uper *SftpUploader) removeSrc(file_to_upload string) {
 	}
 }
 
-func (uper *SftpUploader) upload(file_to_upload string) {
+func (uper *SftpUploader) upload(file_to_upload string) error {
 
-	upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
-	output_file := filepath.Join(uper.TargetPath, upload_source_relative_path)
-	output_file = strings.ReplaceAll(output_file, "\\", "/")
-	uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s", file_to_upload, uper.Target, output_file))
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(uper.Timeout))
+	defer cancel()
 
-	output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
-	err := uper.sftp_client.MkdirAll(output_parent_folder)
-	if err != nil {
-		uper.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", uper.Target, output_parent_folder, err.Error()))
-		return
+	done := make(chan int, 1)
+	go func() {
+
+		upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
+		output_file := filepath.Join(uper.TargetPath, upload_source_relative_path)
+		output_file = strings.ReplaceAll(output_file, "\\", "/")
+		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s", file_to_upload, uper.Target, output_file))
+
+		output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
+		err := uper.sftp_client.MkdirAll(output_parent_folder)
+		if err != nil {
+			uper.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", uper.Target, output_parent_folder, err.Error()))
+			done <- 0
+			return
+		}
+		// uper.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+
+		start_time := time.Now().UnixMilli()
+		source, err := os.OpenFile(file_to_upload, os.O_RDONLY, 0644)
+		if err != nil {
+			uper.logger.Error(fmt.Sprintf("unable to open local file: %s: %s", file_to_upload, err.Error()))
+			done <- 0
+			return
+		}
+		defer source.Close()
+
+		// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, uper.prefix)
+		// target, openerr := uper.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
+		target, openerr := uper.sftp_client.Create(output_file)
+		if openerr != nil {
+			uper.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", uper.Target, output_file, err.Error()))
+			done <- 0
+			return
+		}
+		defer target.Close()
+
+		nBytes, err := io.Copy(target, source)
+		if err != nil {
+			uper.logger.Error(fmt.Sprintf("error uploading file: %s: %s", file_to_upload, err.Error()))
+			done <- 0
+			return
+		}
+		end_time := time.Now().UnixMilli()
+
+		time_taken := end_time - start_time
+		if time_taken < 1 {
+			time_taken = 1
+		}
+		uper.logger.Info(fmt.Sprintf("uploaded %s with %d bytes in %d ms, %.1f mbps", file_to_upload, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
+		done <- 1
+	}()
+
+	select {
+	case <-ctxTimeout.Done():
+		return fmt.Errorf("upload timeout: %v", ctxTimeout.Err())
+	case result := <-done:
+		if result > 0 {
+			return nil
+		}
+		return errors.New("upload failed")
 	}
-	// uper.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
 
-	start_time := time.Now().UnixMilli()
-	source, err := os.OpenFile(file_to_upload, os.O_RDONLY, 0644)
-	if err != nil {
-		uper.logger.Error(fmt.Sprintf("unable to open local file: %s: %s", file_to_upload, err.Error()))
-		return
-	}
-	defer source.Close()
-
-	// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, uper.prefix)
-	// target, openerr := uper.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
-	target, openerr := uper.sftp_client.Create(output_file)
-	if openerr != nil {
-		uper.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", uper.Target, output_file, err.Error()))
-		return
-	}
-	defer target.Close()
-
-	nBytes, err := io.Copy(target, source)
-	if err != nil {
-		uper.logger.Error(fmt.Sprintf("error uploading file: %s: %s", file_to_upload, err.Error()))
-		return
-	}
-	end_time := time.Now().UnixMilli()
-
-	time_taken := end_time - start_time
-	if time_taken < 1 {
-		time_taken = 1
-	}
-	uper.logger.Info(fmt.Sprintf("uploaded %s with %d bytes in %d ms, %.1f mbps", file_to_upload, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 }
 
 // --------------------------------
@@ -152,8 +177,12 @@ func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 	for {
 		file_to_upload = (<-c).Path
 		uper.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_upload))
-		uper.upload(file_to_upload)
-		uper.removeSrc(file_to_upload)
+		upload_err := uper.upload(file_to_upload)
+		if upload_err != nil {
+			uper.logger.Error(fmt.Sprintf("upload error: %s", upload_err.Error()))
+		} else {
+			uper.removeSrc(file_to_upload)
+		}
 		done <- 1
 	}
 }
