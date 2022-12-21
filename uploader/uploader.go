@@ -71,7 +71,7 @@ func (uper *SftpUploader) upload(file_to_upload string) error {
 		upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
 		output_file := filepath.Join(uper.TargetPath, upload_source_relative_path)
 		output_file = strings.ReplaceAll(output_file, "\\", "/")
-		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s", file_to_upload, uper.Target, output_file))
+		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s, with %d seconds timeout", file_to_upload, uper.Target, output_file, uper.Timeout))
 
 		output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
 		err := uper.sftp_client.MkdirAll(output_parent_folder)
@@ -91,8 +91,6 @@ func (uper *SftpUploader) upload(file_to_upload string) error {
 		}
 		defer source.Close()
 
-		// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, uper.prefix)
-		// target, openerr := uper.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
 		target, openerr := uper.sftp_client.Create(output_file)
 		if openerr != nil {
 			uper.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", uper.Target, output_file, err.Error()))

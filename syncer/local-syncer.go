@@ -64,8 +64,6 @@ func (syncer *SftpLocalSyncer) upload(file_to_upload string, output_file string)
 	}
 	defer source.Close()
 
-	// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, syncer.prefix)
-	// target, openerr := syncer.sftp_client.OpenFile(output_file, os.O_CREATE|os.O_WRONLY)
 	target, openerr := syncer.sftp_client.Create(output_file)
 	if openerr != nil {
 		syncer.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", syncer.Server, output_file, err.Error()))

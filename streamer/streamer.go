@@ -83,8 +83,6 @@ func (streamer *SftpStreamer) stream(file_to_download string) {
 	}
 	defer source.Close()
 
-	// nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, streamer.prefix)
-
 	target, openerr := streamer.sftp_client_target.Create(output_file)
 	if openerr != nil {
 		streamer.logger.Error(fmt.Sprintf("error opening target file: %s:%s: %s", streamer.Target, output_file, err.Error()))
