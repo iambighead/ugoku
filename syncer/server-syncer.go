@@ -1,6 +1,8 @@
 package syncer
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -41,41 +43,73 @@ func (syncer *SftpServerSyncer) downloadable(file_to_download string, output_fil
 	return local_modtime != remote_modtime
 }
 
-func (syncer *SftpServerSyncer) download(file_to_download string, output_file string) {
+func (syncer *SftpServerSyncer) download(file_to_download string, output_file string, size int64) error {
 
-	syncer.logger.Debug(fmt.Sprintf("downloading file %s to %s", file_to_download, output_file))
+	timeout_to_use := sftplibs.CalculateTimeout(int64(syncer.Throughput), size, int64(syncer.MaxTimeout))
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout_to_use))
+	defer cancel()
 
-	output_parent_folder := filepath.Dir(output_file)
-	os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
-	// syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+	done := make(chan int, 1)
+	cancelled := false
 
-	start_time := time.Now().UnixMilli()
-	source, err := syncer.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
-	if err != nil {
-		syncer.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s: %s", syncer.Server, file_to_download, err.Error()))
-		return
+	go func() {
+		syncer.logger.Debug(fmt.Sprintf("downloading file %s to %s", file_to_download, output_file))
+
+		output_parent_folder := filepath.Dir(output_file)
+		os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
+		// syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+
+		start_time := time.Now().UnixMilli()
+		source, err := syncer.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
+		if err != nil {
+			syncer.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s: %s", syncer.Server, file_to_download, err.Error()))
+			done <- 0
+			return
+		}
+		defer source.Close()
+
+		nBytes, tempfile_path, err := sftplibs.DownloadToTemp(ctxTimeout, tempfolder, source, syncer.prefix)
+		if err != nil && !cancelled {
+			syncer.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
+			done <- 0
+			return
+		}
+
+		if cancelled {
+			syncer.logger.Info("download cancelled, remove temp file")
+			os.Remove(tempfile_path)
+			done <- 0
+			return
+		}
+
+		err = sftplibs.RenameTempfile(tempfile_path, output_file)
+		if err != nil {
+			syncer.logger.Error(fmt.Sprintf("error renaming file: %s to %s: %s", tempfile_path, output_file, err.Error()))
+			done <- 0
+			return
+		}
+
+		end_time := time.Now().UnixMilli()
+
+		time_taken := end_time - start_time
+		if time_taken < 1 {
+			time_taken = 1
+		}
+		syncer.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
+		done <- 1
+	}()
+
+	select {
+	case <-ctxTimeout.Done():
+		cancelled = true
+		return fmt.Errorf("download timeout: %v", ctxTimeout.Err())
+	case result := <-done:
+		if result > 0 {
+			return nil
+		}
+		return errors.New("download failed")
 	}
-	defer source.Close()
 
-	nBytes, tempfile_path, err := sftplibs.DownloadToTemp(tempfolder, source, syncer.prefix)
-	if err != nil {
-		syncer.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
-		return
-	}
-
-	err = sftplibs.RenameTempfile(tempfile_path, output_file)
-	if err != nil {
-		syncer.logger.Error(fmt.Sprintf("error renaming file: %s to %s: %s", tempfile_path, output_file, err.Error()))
-		return
-	}
-
-	end_time := time.Now().UnixMilli()
-
-	time_taken := end_time - start_time
-	if time_taken < 1 {
-		time_taken = 1
-	}
-	syncer.logger.Info(fmt.Sprintf("downloaded %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 }
 
 // --------------------------------
@@ -140,7 +174,7 @@ func (syncer *SftpServerSyncer) Start(c chan downloader.FileObj, done chan int) 
 		relative_download_path := strings.Replace(fo.Path, syncer.ServerPath, "", 1)
 		output_file := filepath.Join(syncer.LocalPath, relative_download_path)
 		if syncer.downloadable(fo.Path, output_file, fo.Stat) {
-			syncer.download(fo.Path, output_file)
+			syncer.download(fo.Path, output_file, fo.Stat.Size())
 			syncer.updateModTime(output_file, fo.Stat)
 		}
 		done <- 1

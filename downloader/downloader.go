@@ -84,8 +84,8 @@ func (dler *SftpDownloader) download(file_to_download string, size int64) error 
 		}
 		defer source.Close()
 
-		nBytes, tempfile_path, err := sftplibs.DownloadToTemp(tempfolder, source, dler.prefix)
-		if err != nil {
+		nBytes, tempfile_path, err := sftplibs.DownloadToTemp(ctxTimeout, tempfolder, source, dler.prefix)
+		if err != nil && !cancelled {
 			dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
 			done <- 0
 			return

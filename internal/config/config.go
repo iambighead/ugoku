@@ -47,6 +47,8 @@ type SyncerConfig struct {
 	Enabled       bool
 	SleepInterval int
 	Worker        int
+	MaxTimeout    int
+	Throughput    int
 	SyncServer    ServerConfig
 }
 
@@ -139,6 +141,12 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 	for idx, syncer := range config.Syncers {
 		if config.Syncers[idx].Worker < 1 {
 			config.Syncers[idx].Worker = 1
+		}
+		if config.Syncers[idx].MaxTimeout <= 0 {
+			config.Syncers[idx].MaxTimeout = 600
+		}
+		if config.Syncers[idx].Throughput <= 0 {
+			config.Syncers[idx].Throughput = 50
 		}
 		if config.Syncers[idx].SleepInterval < 1 {
 			config.Syncers[idx].SleepInterval = 1

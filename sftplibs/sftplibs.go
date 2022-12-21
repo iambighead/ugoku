@@ -1,6 +1,7 @@
 package sftplibs
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -48,28 +49,28 @@ func ConnectSftpServer(host_ip string, user string, password string) (*ssh.Clien
 	return ssh_client, sftp_client, nil
 }
 
-func doSftpDownload(source io.Reader, tempfile_path string) (int64, error) {
+func doSftpDownload(ctx context.Context, source io.Reader, tempfile_path string) (int64, error) {
 	tempfile, err := os.Create(tempfile_path)
 	if err != nil {
 		return 0, err
 	}
 	defer tempfile.Close()
 
-	nBytes, err := io.Copy(tempfile, source)
+	nBytes, err := CopyWithCancel(ctx, tempfile, source)
 	if err != nil {
 		return 0, err
 	}
 	return nBytes, nil
 }
 
-func DownloadToTemp(temp_folder string, source io.Reader, prefix string) (int64, string, error) {
+func DownloadToTemp(ctx context.Context, temp_folder string, source io.Reader, prefix string) (int64, string, error) {
 	temp_filename := fmt.Sprintf("%s_%d%d", prefix, time.Now().UnixMilli(), tempindex)
 	IncrTempIndex()
 	tempfile_path := filepath.Join(temp_folder, temp_filename)
 
-	nBytes, err := doSftpDownload(source, tempfile_path)
+	nBytes, err := doSftpDownload(ctx, source, tempfile_path)
 	if err != nil {
-		return 0, "", err
+		return 0, tempfile_path, err
 	}
 	return nBytes, tempfile_path, err
 }

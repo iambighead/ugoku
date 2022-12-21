@@ -14,7 +14,7 @@ downloaders:
     targetpath: C:\Users\Downloads\ugoku-output1
     worker: 1
     # maximum timeout in seconds for downloading one file, if not defined default to 600s
-    max_timeout: 600
+    maxtimeout: 600
     # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
     # app will use smaller value of the two: max timeout and calculated value
     # if not defined, default is 50Mbps
@@ -27,7 +27,7 @@ downloaders:
     targetpath: C:\Users\Downloads\ugoku-output2
     worker: 1
     # maximum timeout in seconds for downloading one file, if not defined default to 600s
-    max_timeout: 600
+    maxtimeout: 600
     # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
     # app will use smaller value of the two: max timeout and calculated value
     # if not defined, default is 50Mbps
@@ -46,7 +46,7 @@ uploaders:
     targetpath: for-upload
     worker: 1
     # maximum timeout in seconds for uploading one file, if not defined default to 600s
-    max_timeout: 600
+    maxtimeout: 600
     # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
     # app will use smaller value of the two: max timeout and calculated value
     # if not defined, default is 50Mbps
