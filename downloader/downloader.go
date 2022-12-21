@@ -59,9 +59,9 @@ func (dler *SftpDownloader) removeSrc(file_to_download string) {
 	}
 }
 
-func (dler *SftpDownloader) download(file_to_download string) error {
-
-	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(dler.MaxTimeout))
+func (dler *SftpDownloader) download(file_to_download string, size int64) error {
+	timeout_to_use := sftplibs.CalculateTimeout(int64(dler.Throughput), size, int64(dler.MaxTimeout))
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout_to_use))
 	defer cancel()
 
 	done := make(chan int, 1)
@@ -69,7 +69,7 @@ func (dler *SftpDownloader) download(file_to_download string) error {
 	go func() {
 		relative_download_path := strings.Replace(file_to_download, dler.SourcePath, "", 1)
 		output_file := filepath.Join(dler.TargetPath, relative_download_path)
-		dler.logger.Debug(fmt.Sprintf("downloading file %s:%s to %s, with %d seconds timeout", dler.Source, file_to_download, output_file, dler.MaxTimeout))
+		dler.logger.Debug(fmt.Sprintf("downloading file %s:%s to %s, with %d seconds timeout", dler.Source, file_to_download, output_file, timeout_to_use))
 
 		output_parent_folder := filepath.Dir(output_file)
 		os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
@@ -118,7 +118,6 @@ func (dler *SftpDownloader) download(file_to_download string) error {
 	select {
 	case <-ctxTimeout.Done():
 		cancelled = true
-		time.Sleep(100 * time.Second)
 		return fmt.Errorf("download timeout: %v", ctxTimeout.Err())
 	case result := <-done:
 		if result > 0 {
@@ -174,9 +173,10 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 	dler.prefix = fmt.Sprintf("%s%d", dler.Name, dler.id)
 	var file_to_download string
 	for {
-		file_to_download = (<-c).Path
+		fo := <-c
+		file_to_download = fo.Path
 		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
-		download_err := dler.download(file_to_download)
+		download_err := dler.download(file_to_download, fo.Stat.Size())
 		if download_err != nil {
 			dler.logger.Error(fmt.Sprintf("download error: %s", download_err.Error()))
 		} else {

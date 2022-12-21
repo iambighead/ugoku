@@ -13,9 +13,12 @@ downloaders:
     sourcepath: for-download1
     targetpath: C:\Users\Downloads\ugoku-output1
     worker: 1
-    # maximum timeout in seconds for downloading one file, if not defined default to 60s
-    max_timeout: 60
-
+    # maximum timeout in seconds for downloading one file, if not defined default to 600s
+    max_timeout: 600
+    # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
+    # app will use smaller value of the two: max timeout and calculated value
+    # if not defined, default is 50Mbps
+    throughput: 50
     enabled: true
   - name: localtest2
     source: server2
@@ -23,8 +26,12 @@ downloaders:
     sourcepath: for-download2
     targetpath: C:\Users\Downloads\ugoku-output2
     worker: 1
-    # maximum timeout in seconds for downloading one file, if not defined default to 60s
-    max_timeout: 40
+    # maximum timeout in seconds for downloading one file, if not defined default to 600s
+    max_timeout: 600
+    # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
+    # app will use smaller value of the two: max timeout and calculated value
+    # if not defined, default is 50Mbps
+    throughput: 50
     enabled: false
 
 # Each uploader uploads from a local folder (could be nested)
@@ -38,8 +45,12 @@ uploaders:
     # do not start with ./
     targetpath: for-upload
     worker: 1
-    # maximum timeout in seconds for uploading one file, if not defined default to 60s
-    max_timeout: 60
+    # maximum timeout in seconds for uploading one file, if not defined default to 600s
+    max_timeout: 600
+    # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
+    # app will use smaller value of the two: max timeout and calculated value
+    # if not defined, default is 50Mbps
+    throughput: 50
     enabled: true
 
 # Each syncer sync from a source to a target,

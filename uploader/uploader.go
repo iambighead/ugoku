@@ -60,9 +60,9 @@ func (uper *SftpUploader) removeSrc(file_to_upload string) {
 	}
 }
 
-func (uper *SftpUploader) upload(file_to_upload string) error {
-
-	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(uper.MaxTimeout))
+func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
+	timeout_to_use := sftplibs.CalculateTimeout(int64(uper.Throughput), size, int64(uper.MaxTimeout))
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout_to_use))
 	defer cancel()
 
 	done := make(chan int, 1)
@@ -71,7 +71,7 @@ func (uper *SftpUploader) upload(file_to_upload string) error {
 		upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
 		output_file := filepath.Join(uper.TargetPath, upload_source_relative_path)
 		output_file = strings.ReplaceAll(output_file, "\\", "/")
-		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s, with %d seconds timeout", file_to_upload, uper.Target, output_file, uper.MaxTimeout))
+		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s, with %d seconds timeout", file_to_upload, uper.Target, output_file, timeout_to_use))
 
 		output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
 		err := uper.sftp_client.MkdirAll(output_parent_folder)
@@ -173,9 +173,10 @@ func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 	uper.prefix = fmt.Sprintf("%s%d", uper.Name, uper.id)
 	var file_to_upload string
 	for {
-		file_to_upload = (<-c).Path
+		fo := <-c
+		file_to_upload = fo.Path
 		uper.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_upload))
-		upload_err := uper.upload(file_to_upload)
+		upload_err := uper.upload(file_to_upload, fo.Stat.Size())
 		if upload_err != nil {
 			uper.logger.Error(fmt.Sprintf("upload error: %s", upload_err.Error()))
 		} else {
