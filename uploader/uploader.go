@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +47,7 @@ type SftpUploader struct {
 func (uper *SftpUploader) removeSrc(file_to_upload string) {
 	for i := 0; i < 3; i++ {
 		err := os.Remove(file_to_upload)
-		if err != nil {
+		if err != nil && i == 2 {
 			uper.logger.Error(fmt.Sprintf("failed to remove local file: %s: %s", file_to_upload, err.Error()))
 		} else {
 			// no error, check file really removed
@@ -66,6 +65,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 	defer cancel()
 
 	done := make(chan int, 1)
+	cancelled := false
 	go func() {
 
 		upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
@@ -99,12 +99,20 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		}
 		defer target.Close()
 
-		nBytes, err := io.Copy(target, source)
-		if err != nil {
+		// nBytes, err := io.Copy(target, source)
+		nBytes, err := sftplibs.CopyWithCancel(ctxTimeout, target, source)
+		if err != nil && !cancelled {
 			uper.logger.Error(fmt.Sprintf("error uploading file: %s: %s", file_to_upload, err.Error()))
 			done <- 0
 			return
 		}
+
+		if cancelled {
+			uper.logger.Info("upload cancelled")
+			done <- 0
+			return
+		}
+
 		end_time := time.Now().UnixMilli()
 
 		time_taken := end_time - start_time
