@@ -21,7 +21,7 @@ type DownloaderConfig struct {
 	TargetPath   string
 	Enabled      bool
 	Worker       int
-	Timeout      int
+	MaxTimeout   int
 	SourceServer ServerConfig
 }
 
@@ -32,7 +32,7 @@ type UploaderConfig struct {
 	TargetPath   string
 	Enabled      bool
 	Worker       int
-	Timeout      int
+	MaxTimeout   int
 	TargetServer ServerConfig
 }
 
@@ -104,8 +104,8 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 		if config.Downloaders[idx].Worker < 1 {
 			config.Downloaders[idx].Worker = 1
 		}
-		if config.Downloaders[idx].Timeout <= 0 {
-			config.Downloaders[idx].Timeout = 60
+		if config.Downloaders[idx].MaxTimeout <= 0 {
+			config.Downloaders[idx].MaxTimeout = 60
 		}
 		for _, server := range config.Servers {
 			if server.Name == downloader.Source {
@@ -118,8 +118,8 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 		if config.Uploaders[idx].Worker < 1 {
 			config.Uploaders[idx].Worker = 1
 		}
-		if config.Uploaders[idx].Timeout <= 0 {
-			config.Uploaders[idx].Timeout = 60
+		if config.Uploaders[idx].MaxTimeout <= 0 {
+			config.Uploaders[idx].MaxTimeout = 60
 		}
 		for _, server := range config.Servers {
 			if server.Name == uploader.Target {

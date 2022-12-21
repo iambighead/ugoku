@@ -57,11 +57,18 @@ func (syncer *SftpServerSyncer) download(file_to_download string, output_file st
 	}
 	defer source.Close()
 
-	nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, syncer.prefix)
+	nBytes, tempfile_path, err := sftplibs.DownloadToTemp(tempfolder, source, syncer.prefix)
 	if err != nil {
 		syncer.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
 		return
 	}
+
+	err = sftplibs.RenameTempfile(tempfile_path, output_file)
+	if err != nil {
+		syncer.logger.Error(fmt.Sprintf("error renaming file: %s to %s: %s", tempfile_path, output_file, err.Error()))
+		return
+	}
+
 	end_time := time.Now().UnixMilli()
 
 	time_taken := end_time - start_time

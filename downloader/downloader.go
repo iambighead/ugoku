@@ -61,14 +61,15 @@ func (dler *SftpDownloader) removeSrc(file_to_download string) {
 
 func (dler *SftpDownloader) download(file_to_download string) error {
 
-	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(dler.Timeout))
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(dler.MaxTimeout))
 	defer cancel()
 
 	done := make(chan int, 1)
+	cancelled := false
 	go func() {
 		relative_download_path := strings.Replace(file_to_download, dler.SourcePath, "", 1)
 		output_file := filepath.Join(dler.TargetPath, relative_download_path)
-		dler.logger.Debug(fmt.Sprintf("downloading file %s to %s", file_to_download, output_file))
+		dler.logger.Debug(fmt.Sprintf("downloading file %s:%s to %s, with %d seconds timeout", dler.Source, file_to_download, output_file, dler.MaxTimeout))
 
 		output_parent_folder := filepath.Dir(output_file)
 		os.MkdirAll(output_parent_folder, fs.ModeDir|0764)
@@ -83,12 +84,27 @@ func (dler *SftpDownloader) download(file_to_download string) error {
 		}
 		defer source.Close()
 
-		nBytes, err := sftplibs.DownloadViaStaging(tempfolder, output_file, source, dler.prefix)
+		nBytes, tempfile_path, err := sftplibs.DownloadToTemp(tempfolder, source, dler.prefix)
 		if err != nil {
 			dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
 			done <- 0
 			return
 		}
+
+		if cancelled {
+			dler.logger.Info("download cancelled, remove temp file")
+			os.Remove(tempfile_path)
+			done <- 0
+			return
+		}
+
+		err = sftplibs.RenameTempfile(tempfile_path, output_file)
+		if err != nil {
+			dler.logger.Error(fmt.Sprintf("error renaming file: %s to %s: %s", tempfile_path, output_file, err.Error()))
+			done <- 0
+			return
+		}
+
 		end_time := time.Now().UnixMilli()
 
 		time_taken := end_time - start_time
@@ -101,6 +117,8 @@ func (dler *SftpDownloader) download(file_to_download string) error {
 
 	select {
 	case <-ctxTimeout.Done():
+		cancelled = true
+		time.Sleep(100 * time.Second)
 		return fmt.Errorf("download timeout: %v", ctxTimeout.Err())
 	case result := <-done:
 		if result > 0 {

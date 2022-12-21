@@ -62,7 +62,7 @@ func (uper *SftpUploader) removeSrc(file_to_upload string) {
 
 func (uper *SftpUploader) upload(file_to_upload string) error {
 
-	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(uper.Timeout))
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(uper.MaxTimeout))
 	defer cancel()
 
 	done := make(chan int, 1)
@@ -71,7 +71,7 @@ func (uper *SftpUploader) upload(file_to_upload string) error {
 		upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
 		output_file := filepath.Join(uper.TargetPath, upload_source_relative_path)
 		output_file = strings.ReplaceAll(output_file, "\\", "/")
-		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s, with %d seconds timeout", file_to_upload, uper.Target, output_file, uper.Timeout))
+		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s, with %d seconds timeout", file_to_upload, uper.Target, output_file, uper.MaxTimeout))
 
 		output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
 		err := uper.sftp_client.MkdirAll(output_parent_folder)
