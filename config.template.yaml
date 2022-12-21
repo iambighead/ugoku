@@ -17,8 +17,8 @@ downloaders:
     maxtimeout: 600
     # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
     # app will use smaller value of the two: max timeout and calculated value
-    # if not defined, default is 50Mbps
-    throughput: 50
+    # if not defined, default is 10Mbps
+    throughput: 10
     enabled: true
   - name: localtest2
     source: server2
@@ -30,8 +30,8 @@ downloaders:
     maxtimeout: 600
     # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
     # app will use smaller value of the two: max timeout and calculated value
-    # if not defined, default is 50Mbps
-    throughput: 50
+    # if not defined, default is 10Mbps
+    throughput: 10
     enabled: false
 
 # Each uploader uploads from a local folder (could be nested)
@@ -50,7 +50,7 @@ uploaders:
     # estimated throughput in Mbps (megabits/second), for calculating dynamic throughput
     # app will use smaller value of the two: max timeout and calculated value
     # if not defined, default is 50Mbps
-    throughput: 50
+    throughput: 10
     enabled: true
 
 # Each syncer sync from a source to a target,

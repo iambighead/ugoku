@@ -112,7 +112,7 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 			config.Downloaders[idx].MaxTimeout = 600
 		}
 		if config.Downloaders[idx].Throughput <= 0 {
-			config.Downloaders[idx].Throughput = 50
+			config.Downloaders[idx].Throughput = 10
 		}
 		for _, server := range config.Servers {
 			if server.Name == downloader.Source {
@@ -129,7 +129,7 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 			config.Uploaders[idx].MaxTimeout = 600
 		}
 		if config.Uploaders[idx].Throughput <= 0 {
-			config.Uploaders[idx].Throughput = 50
+			config.Uploaders[idx].Throughput = 10
 		}
 		for _, server := range config.Servers {
 			if server.Name == uploader.Target {
@@ -146,7 +146,7 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 			config.Syncers[idx].MaxTimeout = 600
 		}
 		if config.Syncers[idx].Throughput <= 0 {
-			config.Syncers[idx].Throughput = 50
+			config.Syncers[idx].Throughput = 10
 		}
 		if config.Syncers[idx].SleepInterval < 1 {
 			config.Syncers[idx].SleepInterval = 1
