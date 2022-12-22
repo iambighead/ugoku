@@ -45,10 +45,11 @@ type SftpDownloader struct {
 
 // --------------------------------
 func (dler *SftpDownloader) removeSrc(file_to_download string) {
-	for i := 0; i < 3; i++ {
+	for i := 1; i <= 3; i++ {
+		time.Sleep(time.Duration(i*100) * time.Millisecond)
 		err := dler.sftp_client.Remove(file_to_download)
 		if err != nil {
-			dler.logger.Error(fmt.Sprintf("failed to remove remote file: %s: %s: %s", dler.Source, file_to_download, err.Error()))
+			dler.logger.Error(fmt.Sprintf("failed to remove remote file (try %d): %s: %s: %s", i, dler.Source, file_to_download, err.Error()))
 		} else {
 			// no error, check file really removed
 			_, staterr := dler.sftp_client.Stat(file_to_download)
@@ -177,12 +178,12 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 		file_to_download = fo.Path
 		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
 		download_err := dler.download(file_to_download, fo.Stat.Size())
+		done <- 1
 		if download_err != nil {
 			dler.logger.Error(fmt.Sprintf("download error: %s", download_err.Error()))
 		} else {
-			dler.removeSrc(file_to_download)
+			go dler.removeSrc(file_to_download)
 		}
-		done <- 1
 	}
 }
 

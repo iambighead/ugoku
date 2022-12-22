@@ -45,10 +45,11 @@ type SftpUploader struct {
 // --------------------------------
 
 func (uper *SftpUploader) removeSrc(file_to_upload string) {
-	for i := 0; i < 3; i++ {
+	for i := 1; i <= 3; i++ {
+		time.Sleep(time.Duration(i*100) * time.Millisecond)
 		err := os.Remove(file_to_upload)
-		if err != nil && i == 2 {
-			uper.logger.Error(fmt.Sprintf("failed to remove local file: %s: %s", file_to_upload, err.Error()))
+		if err != nil {
+			uper.logger.Error(fmt.Sprintf("failed to remove local file (try %d): %s: %s", i, file_to_upload, err.Error()))
 		} else {
 			// no error, check file really removed
 			_, staterr := os.Stat(file_to_upload)
@@ -185,12 +186,12 @@ func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 		file_to_upload = fo.Path
 		uper.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_upload))
 		upload_err := uper.upload(file_to_upload, fo.Stat.Size())
+		done <- 1
 		if upload_err != nil {
 			uper.logger.Error(fmt.Sprintf("upload error: %s", upload_err.Error()))
 		} else {
-			uper.removeSrc(file_to_upload)
+			go uper.removeSrc(file_to_upload)
 		}
-		done <- 1
 	}
 }
 
