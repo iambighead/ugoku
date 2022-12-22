@@ -97,6 +97,9 @@ func RenameTempfile(tempfile_path string, output_file string) error {
 func CalculateTimeout(throughput int64, size int64, max_timeout int64) int64 {
 	timeout := int64(size / (throughput * 125000))
 	if timeout < max_timeout {
+		if timeout < 60 {
+			timeout = 60
+		}
 		return timeout
 	}
 	return max_timeout
