@@ -101,7 +101,7 @@ func (scanner *SftpScanner) scan(c chan FileObj, done chan int) {
 		} else {
 			sleep_time = scanner.Default_sleep_time
 		}
-		scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
+		// scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
 		time.Sleep(time.Duration(sleep_time) * time.Second)
 	}
 }

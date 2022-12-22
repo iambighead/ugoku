@@ -54,9 +54,9 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 			// walk a directory
 			filelist, err := utils.ReadFilelist(scanner.SourcePath)
 			if err == nil {
-				if len(filelist) > 0 {
-					scanner.logger.Debug(fmt.Sprintf("found files: %d", len(filelist)))
-				}
+				// if len(filelist) > 0 {
+				// 	scanner.logger.Debug(fmt.Sprintf("found files: %d", len(filelist)))
+				// }
 			} else {
 				scanner.logger.Error(fmt.Sprintf("failed to scan source folder: %s", err.Error()))
 			}
@@ -119,7 +119,10 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 				}
 			}
 
-			scanner.logger.Debug(fmt.Sprintf("file lookup length is now %d", len(scanner.LocalFolderMap)))
+			// lookup_len := len(scanner.LocalFolderMap)
+			// if lookup_len > 0 {
+			// 	scanner.logger.Debug(fmt.Sprintf("file lookup length is now %d", lookup_len))
+			// }
 
 			if dispatched > 0 {
 				scanner.logger.Debug(fmt.Sprintf("end of scan, wait for %d more dispatched to be done", dispatched))
@@ -134,7 +137,7 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 			}
 		}
 
-		scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
+		// scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
 		time.Sleep(time.Duration(sleep_time) * time.Second)
 	}
 }
