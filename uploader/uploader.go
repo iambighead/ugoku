@@ -140,7 +140,11 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 
 func (uper *SftpUploader) connectAndGetClients() error {
 	uper.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", uper.TargetServer.Ip, uper.TargetServer.User))
-	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(uper.TargetServer.Ip, uper.TargetServer.User, uper.TargetServer.Password)
+	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
+		uper.TargetServer.Ip,
+		uper.TargetServer.User,
+		uper.TargetServer.Password,
+		uper.TargetServer.KeyFile)
 	if err != nil {
 		return err
 	}

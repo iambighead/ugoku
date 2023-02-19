@@ -132,7 +132,11 @@ func (dler *SftpDownloader) download(file_to_download string, size int64) error 
 
 func (dler *SftpDownloader) connectAndGetClients() error {
 	dler.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
-	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(dler.SourceServer.Ip, dler.SourceServer.User, dler.SourceServer.Password)
+	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
+		dler.SourceServer.Ip,
+		dler.SourceServer.User,
+		dler.SourceServer.Password,
+		dler.SourceServer.KeyFile)
 	if err != nil {
 		return err
 	}

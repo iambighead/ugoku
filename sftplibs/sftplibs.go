@@ -25,14 +25,40 @@ func IncrTempIndex() {
 	}
 }
 
-func ConnectSftpServer(host_ip string, user string, password string) (*ssh.Client, *sftp.Client, error) {
+func ConnectSftpServer(host_ip string, user string, password string, keyfile string) (*ssh.Client, *sftp.Client, error) {
 
-	config := &ssh.ClientConfig{
-		User: user,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(password),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	var config *ssh.ClientConfig
+
+	if keyfile != "" {
+		// fmt.Printf("connect using key file: %s\n", keyfile)
+		// var hostKey ssh.PublicKey
+		key, err := os.ReadFile(keyfile)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Create the Signer for this private key.
+		signer, err := ssh.ParsePrivateKey(key)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		config = &ssh.ClientConfig{
+			User: user,
+			Auth: []ssh.AuthMethod{
+				// Use the PublicKeys method for remote authentication.
+				ssh.PublicKeys(signer),
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
+	} else {
+		config = &ssh.ClientConfig{
+			User: user,
+			Auth: []ssh.AuthMethod{
+				ssh.Password(password),
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
 	}
 
 	ipport_str := fmt.Sprintf("%s:22", host_ip)

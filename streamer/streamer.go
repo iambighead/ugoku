@@ -108,7 +108,11 @@ func (streamer *SftpStreamer) stream(file_to_download string) {
 
 func (streamer *SftpStreamer) connectAndGetClients() error {
 	streamer.logger.Debug(fmt.Sprintf("connecting to source server %s with user %s", streamer.SourceServer.Ip, streamer.SourceServer.User))
-	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(streamer.SourceServer.Ip, streamer.SourceServer.User, streamer.SourceServer.Password)
+	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
+		streamer.SourceServer.Ip,
+		streamer.SourceServer.User,
+		streamer.SourceServer.Password,
+		streamer.SourceServer.KeyFile)
 	if err != nil {
 		return err
 	}
@@ -117,7 +121,11 @@ func (streamer *SftpStreamer) connectAndGetClients() error {
 	streamer.sftp_client_source = sftp_client
 
 	streamer.logger.Debug(fmt.Sprintf("connecting to target server %s with user %s", streamer.TargetServer.Ip, streamer.TargetServer.User))
-	ssh_client_target, sftp_client_target, err := sftplibs.ConnectSftpServer(streamer.TargetServer.Ip, streamer.TargetServer.User, streamer.TargetServer.Password)
+	ssh_client_target, sftp_client_target, err := sftplibs.ConnectSftpServer(
+		streamer.TargetServer.Ip,
+		streamer.TargetServer.User,
+		streamer.TargetServer.Password,
+		streamer.TargetServer.KeyFile)
 	if err != nil {
 		return err
 	}

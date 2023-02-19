@@ -12,6 +12,7 @@ type ServerConfig struct {
 	Ip       string
 	User     string
 	Password string
+	KeyFile  string
 }
 
 type DownloaderConfig struct {
