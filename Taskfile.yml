@@ -32,7 +32,6 @@ tasks:
     cmds:
       - task: build_windows
       - task: build_linux
-      - GOOS=linux CGO_ENABLED=0 go build -v
 
   build_windows:
     silent: true
