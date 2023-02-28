@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
@@ -76,12 +78,20 @@ func init() {
 	logger.Init("ugoku.log", "UGOKU_LOG_LEVEL")
 	main_logger = logger.NewLogger("main")
 
-	var err error
-	master_config, err = config.ReadConfig("config.yaml")
+	ex, err := os.Executable()
 	if err != nil {
-		main_logger.Error(fmt.Sprintf("failed to read config: %v", err))
+		main_logger.Error("unable to get executable path")
+		os.Exit(1)
 	}
 
+	{
+		var err error
+		config_path := filepath.Join(filepath.Dir(ex), "config.yaml")
+		master_config, err = config.ReadConfig(config_path)
+		if err != nil {
+			main_logger.Error(fmt.Sprintf("failed to read config: %v", err))
+		}
+	}
 }
 
 // --------------------------
