@@ -25,7 +25,7 @@ func IncrTempIndex() {
 	}
 }
 
-func ConnectSftpServer(host_ip string, user string, password string, keyfile string) (*ssh.Client, *sftp.Client, error) {
+func ConnectSftpServer(host_ip string, host_port int, user string, password string, keyfile string) (*ssh.Client, *sftp.Client, error) {
 
 	var config *ssh.ClientConfig
 
@@ -61,7 +61,7 @@ func ConnectSftpServer(host_ip string, user string, password string, keyfile str
 		}
 	}
 
-	ipport_str := fmt.Sprintf("%s:22", host_ip)
+	ipport_str := fmt.Sprintf("%s:%d", host_ip, host_port)
 	ssh_client, err := ssh.Dial("tcp", ipport_str, config)
 	if err != nil {
 		return nil, nil, err

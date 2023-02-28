@@ -118,6 +118,7 @@ func (syncer *SftpServerSyncer) connectAndGetClients() error {
 	syncer.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", syncer.SyncServer.Ip, syncer.SyncServer.User))
 	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
 		syncer.SyncServer.Ip,
+		syncer.SyncServer.Port,
 		syncer.SyncServer.User,
 		syncer.SyncServer.Password,
 		syncer.SyncServer.KeyFile)

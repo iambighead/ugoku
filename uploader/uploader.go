@@ -142,6 +142,7 @@ func (uper *SftpUploader) connectAndGetClients() error {
 	uper.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", uper.TargetServer.Ip, uper.TargetServer.User))
 	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
 		uper.TargetServer.Ip,
+		uper.TargetServer.Port,
 		uper.TargetServer.User,
 		uper.TargetServer.Password,
 		uper.TargetServer.KeyFile)

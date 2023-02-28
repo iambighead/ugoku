@@ -10,6 +10,7 @@ import (
 type ServerConfig struct {
 	Name     string
 	Ip       string
+	Port     int
 	User     string
 	Password string
 	KeyFile  string
@@ -103,6 +104,12 @@ func ReadConfig(path_to_config string) (MasterConfig, error) {
 	err2 := yaml.Unmarshal(yfile, &config)
 	if err2 != nil {
 		return config, err2
+	}
+
+	for idx, server := range config.Servers {
+		if server.Port == 0 {
+			config.Servers[idx].Port = 22
+		}
 	}
 
 	for idx, downloader := range config.Downloaders {

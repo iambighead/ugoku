@@ -110,6 +110,7 @@ func (scanner *SftpScanner) connectAndGetClients() error {
 	scanner.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", scanner.SourceServer.Ip, scanner.SourceServer.User))
 	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
 		scanner.SourceServer.Ip,
+		scanner.SourceServer.Port,
 		scanner.SourceServer.User,
 		scanner.SourceServer.Password,
 		scanner.SourceServer.KeyFile)

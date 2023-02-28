@@ -93,6 +93,7 @@ streamers:
 servers:
   - name: server1
     ip: 192.168.1.1
+    port: 22
     user: user
     password: Password
     # key file to use, if both key file and
@@ -100,6 +101,7 @@ servers:
     keyfile: id_rsa
   - name: server2
     ip: 192.168.1.2
+    port: 22
     user: user
     password: Password
     keyfile: id_rsa
