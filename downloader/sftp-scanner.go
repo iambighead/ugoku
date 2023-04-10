@@ -44,52 +44,59 @@ func (scanner *SftpScanner) scan(c chan FileObj, done chan int) {
 	// walk a directory
 	sleep_time := scanner.Default_sleep_time
 	for {
+		if !scanner.started {
+			scanner.logger.Info("sftp scanner stopped, exiting scan")
+			return
+		}
+
 		files_found := false
-		if scanner.started {
-			var dispatched int
-			w := scanner.sftp_client.Walk(scanner.SourcePath)
-			for w.Step() {
-				if scanner.started {
-					if w.Err() != nil {
-						scanner.logger.Debug(w.Err().Error())
-						continue
-					}
-					if !w.Stat().IsDir() {
-						files_found = true
-						// filelist = append(filelist, w.Path())
-						var rf FileObj
-						rf.Path = w.Path()
-						rf.Stat = w.Stat()
+		var dispatched int
+		w := scanner.sftp_client.Walk(scanner.SourcePath)
+		for w.Step() {
 
-						select {
-						// Put new file in the channel unless it is full
-						case c <- rf:
-							dispatched++
-							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", rf.Path, dispatched, len(c), cap(c)))
-
-						default:
-							scanner.logger.Debug(fmt.Sprintf("channel full (%d dispatched) wait for something done first", dispatched))
-							<-done
-							dispatched--
-							scanner.logger.Debug(fmt.Sprintf("done received, %d dispatched now", dispatched))
-							c <- rf
-							dispatched++
-							scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", rf.Path, dispatched, len(c), cap(c)))
-						}
-					}
-					// scanner.logger.Debug(fmt.Sprintf("path=%s, isDir=%t", w.Path(), w.Stat().IsDir()))
-				}
+			if !scanner.started {
+				scanner.logger.Info("sftp scanner stopped, exiting scan")
+				return
 			}
 
-			if dispatched > 0 {
-				scanner.logger.Debug(fmt.Sprintf("end of scan, wait for %d more dispatched to be done", dispatched))
-				for {
+			if w.Err() != nil {
+				scanner.logger.Debug(w.Err().Error())
+				continue
+			}
+			if !w.Stat().IsDir() {
+				files_found = true
+				// filelist = append(filelist, w.Path())
+				var rf FileObj
+				rf.Path = w.Path()
+				rf.Stat = w.Stat()
+
+				select {
+				// Put new file in the channel unless it is full
+				case c <- rf:
+					dispatched++
+					scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", rf.Path, dispatched, len(c), cap(c)))
+
+				default:
+					scanner.logger.Debug(fmt.Sprintf("channel full (%d dispatched) wait for something done first", dispatched))
 					<-done
 					dispatched--
-					scanner.logger.Debug(fmt.Sprintf("received done, dispatched = %d", dispatched))
-					if dispatched < 1 {
-						break
-					}
+					scanner.logger.Debug(fmt.Sprintf("done received, %d dispatched now", dispatched))
+					c <- rf
+					dispatched++
+					scanner.logger.Debug(fmt.Sprintf("sent file to channel: %s, dispatched %d, ch %d/%d", rf.Path, dispatched, len(c), cap(c)))
+				}
+			}
+			// scanner.logger.Debug(fmt.Sprintf("path=%s, isDir=%t", w.Path(), w.Stat().IsDir()))
+		}
+
+		if dispatched > 0 {
+			scanner.logger.Debug(fmt.Sprintf("end of scan, wait for %d more dispatched to be done", dispatched))
+			for {
+				<-done
+				dispatched--
+				scanner.logger.Debug(fmt.Sprintf("received done, dispatched = %d", dispatched))
+				if dispatched < 1 {
+					break
 				}
 			}
 		}
@@ -146,7 +153,7 @@ func (scanner *SftpScanner) Start(c chan FileObj, done chan int) {
 	scanner.scan(c, done)
 }
 
-func (scanner *SftpScanner) Stop(c chan string) {
+func (scanner *SftpScanner) Stop() {
 	scanner.logger.Info("stopping")
 	scanner.started = false
 	scanner.sftp_client.Close()

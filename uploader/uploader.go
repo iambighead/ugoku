@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
@@ -41,6 +43,8 @@ type SftpUploader struct {
 	sftp_client *sftp.Client
 	ssh_client  *ssh.Client
 }
+
+var global_stop_channel = make(chan int, 1)
 
 // --------------------------------
 
@@ -132,6 +136,8 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 			return nil
 		}
 		return errors.New("upload failed")
+	case <-global_stop_channel:
+		return errors.New(fmt.Sprintf("upload cancelled due to stop signal: %s", file_to_upload))
 	}
 
 }
@@ -175,8 +181,14 @@ func (uper *SftpUploader) init() {
 
 func (uper *SftpUploader) Stop() {
 	uper.started = false
-	uper.sftp_client.Close()
-	uper.ssh_client.Close()
+	global_stop_channel <- 1
+	if uper.sftp_client != nil {
+		uper.sftp_client.Close()
+	}
+	if uper.ssh_client != nil {
+		uper.ssh_client.Close()
+	}
+	uper.logger.Info("stopped")
 }
 
 // --------------------------------
@@ -187,6 +199,9 @@ func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 	uper.prefix = fmt.Sprintf("%s%d", uper.Name, uper.id)
 	var file_to_upload string
 	for {
+		if !uper.started {
+			return
+		}
 		fo := <-c
 		file_to_upload = fo.Path
 		uper.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_upload))
@@ -206,15 +221,33 @@ func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
 	c := make(chan FileObj, uploaderer_config.Worker*2)
 	done := make(chan int, uploaderer_config.Worker*2)
 
+	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
+
 	for i := 0; i < uploaderer_config.Worker; i++ {
 		var new_uploader SftpUploader
 		new_uploader.UploaderConfig = uploaderer_config
 		new_uploader.id = i
 		go new_uploader.Start(c, done)
+		uploaders[i] = &new_uploader
 	}
 	var new_scanner FolderScanner
 	new_scanner.UploaderConfig = uploaderer_config
 	go new_scanner.Start(c, done)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
+
+	go func() {
+		sig := <-sigs
+		fmt.Printf("uploader: signal received: %s\n", sig)
+		new_scanner.Stop()
+		for _, this_uploader := range uploaders {
+			this_uploader.Stop()
+		}
+
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
 }
 
 // --------------------------------

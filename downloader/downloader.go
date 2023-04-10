@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
@@ -20,6 +22,7 @@ import (
 // --------------------------------
 
 var tempfolder string
+var global_stop_channel = make(chan int, 1)
 
 func init() {
 }
@@ -125,6 +128,8 @@ func (dler *SftpDownloader) download(file_to_download string, size int64) error 
 			return nil
 		}
 		return errors.New("download failed")
+	case <-global_stop_channel:
+		return errors.New(fmt.Sprintf("download cancelled due to stop signal: %s", file_to_download))
 	}
 }
 
@@ -167,8 +172,14 @@ func (dler *SftpDownloader) init() {
 
 func (dler *SftpDownloader) Stop() {
 	dler.started = false
-	dler.sftp_client.Close()
-	dler.ssh_client.Close()
+	global_stop_channel <- 1
+	if dler.sftp_client != nil {
+		dler.sftp_client.Close()
+	}
+	if dler.ssh_client != nil {
+		dler.ssh_client.Close()
+	}
+	dler.logger.Info("stopped")
 }
 
 // --------------------------------
@@ -198,15 +209,34 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	c := make(chan FileObj, downloader_config.Worker*2)
 	done := make(chan int, downloader_config.Worker*2)
 
+	downloaders := make([]*SftpDownloader, downloader_config.Worker)
+
 	for i := 0; i < downloader_config.Worker; i++ {
 		var new_downloader SftpDownloader
 		new_downloader.DownloaderConfig = downloader_config
 		new_downloader.id = i
 		go new_downloader.Start(c, done)
+		downloaders[i] = &new_downloader
 	}
 	var new_scanner SftpScanner
 	new_scanner.DownloaderConfig = downloader_config
 	go new_scanner.Start(c, done)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		fmt.Printf("downloader: signal received: %s\n", sig)
+
+		new_scanner.Stop()
+		for _, this_downloader := range downloaders {
+			this_downloader.Stop()
+		}
+
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
 }
 
 // --------------------------------
