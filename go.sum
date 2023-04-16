@@ -3,8 +3,8 @@ github.com/coreos/go-systemd/v22 v22.3.3-0.20220203105225-a9a7ef127534/go.mod h1
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
-github.com/iambighead/goutils v0.0.2 h1:FXmLhoe5Nxx2ZZgPnlTtPll76EOxC/XPZF2HIrQb2Js=
-github.com/iambighead/goutils v0.0.2/go.mod h1:6clnraYmaOzBxVfV+3OYiGEwvi9EfWv22J3rFZh0lqc=
+github.com/iambighead/goutils v0.0.3 h1:yJ05tLXby04jd94JotThLHi9TBwoBi2eKVhHTXWEP4o=
+github.com/iambighead/goutils v0.0.3/go.mod h1:6clnraYmaOzBxVfV+3OYiGEwvi9EfWv22J3rFZh0lqc=
 github.com/kr/fs v0.1.0 h1:Jskdu9ieNAYnjxsi0LbQp1ulIKZV1LAFgK1tWhpZgl8=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/mattn/go-colorable v0.1.12/go.mod h1:u5H1YNBxpqRaxsYJYSkiCWKzEfiAb1Gb520KVy5xxl4=
