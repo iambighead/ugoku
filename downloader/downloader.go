@@ -239,4 +239,33 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	}()
 }
 
+func NewSimpleDownloader(downloader_config config.DownloaderConfig) {
+	// make a channel
+	c := make(chan FileObj, downloader_config.Worker*2)
+	done := make(chan int, downloader_config.Worker*2)
+
+	var new_downloader SftpDownloader
+	new_downloader.DownloaderConfig = downloader_config
+	new_downloader.id = 0
+	go new_downloader.Start(c, done)
+
+	var new_scanner SftpScanner
+	new_scanner.DownloaderConfig = downloader_config
+	go new_scanner.ScanOnce(c, done)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		fmt.Printf("downloader: signal received: %s\n", sig)
+
+		new_scanner.Stop()
+		new_downloader.Stop()
+
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
+}
+
 // --------------------------------
