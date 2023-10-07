@@ -118,6 +118,7 @@ func (scanner *SftpScanner) scan(c chan FileObj, done chan int, scan_one_time_on
 
 		if scan_one_time_only {
 			// scanner.logger.Info("scan only one time")
+			time.Sleep(1 * time.Second)
 			os.Exit(0)
 		}
 		// scanner.logger.Info("sleep and scan again")
