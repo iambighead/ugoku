@@ -3,7 +3,6 @@ config.yaml
 build/*
 *.log
 ugoku
-ugoku.exe
 dist/
 ugoku-cli
-ugoku-clo.exe
+*.exe
