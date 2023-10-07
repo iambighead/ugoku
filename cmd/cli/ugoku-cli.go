@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -95,16 +94,30 @@ func init() {
 
 // --------------------------
 
+func printUsage() {
+	main_logger.Info(fmt.Sprintf("Usage:"))
+	main_logger.Info(fmt.Sprintf(""))
+	main_logger.Info(fmt.Sprintf("  ugoku-cli <command>"))
+	main_logger.Info(fmt.Sprintf(""))
+	main_logger.Info(fmt.Sprintf("command can be upload, download, sync"))
+	main_logger.Info(fmt.Sprintf(""))
+	main_logger.Info(fmt.Sprintf("Example:"))
+	main_logger.Info(fmt.Sprintf(""))
+	main_logger.Info(fmt.Sprintf("  ugoku-cli sync"))
+}
+
 func main() {
 
-	main_logger.Info(fmt.Sprintf("Ugoku-cli started. Version %s", VERSION))
+	main_logger.Info(fmt.Sprintf("ugoku-cli version %s", VERSION))
 
-	cmdFlag := flag.String("cmd", "download", "ugoku command to run, default 'download'")
-	flag.Parse()
+	if len(os.Args) < 2 {
+		printUsage()
+		return
+	}
 
-	main_logger.Info(fmt.Sprintf("Ugoku-cli command to run = %s", *cmdFlag))
+	cmd := os.Args[1]
 
-	switch *cmdFlag {
+	switch cmd {
 	case "upload":
 		go startUploaders(master_config)
 		break
@@ -115,7 +128,8 @@ func main() {
 		go startSyncers(master_config)
 		break
 	default:
-		main_logger.Info("do not know how to proceed, exiting")
+		main_logger.Error("Missing or unknown command")
+		printUsage()
 		os.Exit(0)
 	}
 
