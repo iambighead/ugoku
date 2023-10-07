@@ -194,12 +194,12 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 		file_to_download = fo.Path
 		dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
 		download_err := dler.download(file_to_download, fo.Stat.Size())
-		done <- 1
 		if download_err != nil {
 			dler.logger.Error(fmt.Sprintf("download error: %s", download_err.Error()))
 		} else {
-			go dler.removeSrc(file_to_download)
+			dler.removeSrc(file_to_download)
 		}
+		done <- 1
 	}
 }
 
@@ -221,6 +221,42 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	var new_scanner SftpScanner
 	new_scanner.DownloaderConfig = downloader_config
 	go new_scanner.Start(c, done, false)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		fmt.Printf("downloader: signal received: %s\n", sig)
+
+		new_scanner.Stop()
+		for _, this_downloader := range downloaders {
+			this_downloader.Stop()
+		}
+
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
+}
+
+func NewOneTimeDownloader(downloader_config config.DownloaderConfig, tf string) {
+	tempfolder = tf
+	// make a channel
+	c := make(chan FileObj, downloader_config.Worker*2)
+	done := make(chan int, downloader_config.Worker*2)
+
+	downloaders := make([]*SftpDownloader, downloader_config.Worker)
+
+	for i := 0; i < downloader_config.Worker; i++ {
+		var new_downloader SftpDownloader
+		new_downloader.DownloaderConfig = downloader_config
+		new_downloader.id = i
+		go new_downloader.Start(c, done)
+		downloaders[i] = &new_downloader
+	}
+	var new_scanner SftpScanner
+	new_scanner.DownloaderConfig = downloader_config
+	go new_scanner.Start(c, done, true)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

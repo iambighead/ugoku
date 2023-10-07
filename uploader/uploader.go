@@ -206,12 +206,12 @@ func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 		file_to_upload = fo.Path
 		uper.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_upload))
 		upload_err := uper.upload(file_to_upload, fo.Stat.Size())
-		done <- 1
 		if upload_err != nil {
 			uper.logger.Error(fmt.Sprintf("upload error: %s", upload_err.Error()))
 		} else {
-			go uper.removeSrc(file_to_upload)
+			uper.removeSrc(file_to_upload)
 		}
+		done <- 1
 	}
 }
 
@@ -233,6 +233,41 @@ func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
 	var new_scanner FolderScanner
 	new_scanner.UploaderConfig = uploaderer_config
 	go new_scanner.Start(c, done, false)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
+
+	go func() {
+		sig := <-sigs
+		fmt.Printf("uploader: signal received: %s\n", sig)
+		new_scanner.Stop()
+		for _, this_uploader := range uploaders {
+			this_uploader.Stop()
+		}
+
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
+}
+
+func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string) {
+	// tempfolder = tf
+	// make a channel
+	c := make(chan FileObj, uploaderer_config.Worker*2)
+	done := make(chan int, uploaderer_config.Worker*2)
+
+	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
+
+	for i := 0; i < uploaderer_config.Worker; i++ {
+		var new_uploader SftpUploader
+		new_uploader.UploaderConfig = uploaderer_config
+		new_uploader.id = i
+		go new_uploader.Start(c, done)
+		uploaders[i] = &new_uploader
+	}
+	var new_scanner FolderScanner
+	new_scanner.UploaderConfig = uploaderer_config
+	go new_scanner.Start(c, done, true)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
