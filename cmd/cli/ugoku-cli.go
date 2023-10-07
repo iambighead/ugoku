@@ -31,6 +31,10 @@ func startDownloaders(master_config config.MasterConfig) {
 	}
 
 	main_logger.Info(fmt.Sprintf("started %d downloaders", downloader_started))
+
+	if downloader_started == 0 {
+		os.Exit(0)
+	}
 }
 
 func startUploaders(master_config config.MasterConfig) {
@@ -44,6 +48,10 @@ func startUploaders(master_config config.MasterConfig) {
 	}
 
 	main_logger.Info(fmt.Sprintf("started %d uploaders", uploader_started))
+
+	if uploader_started == 0 {
+		os.Exit(0)
+	}
 }
 
 func startSyncers(master_config config.MasterConfig) {
