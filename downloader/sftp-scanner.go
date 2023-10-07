@@ -3,6 +3,7 @@ package downloader
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
@@ -96,7 +97,7 @@ func (scanner *SftpScanner) ScanOnce(c chan FileObj, done chan int) bool {
 	return files_found
 }
 
-func (scanner *SftpScanner) scan(c chan FileObj, done chan int) {
+func (scanner *SftpScanner) scan(c chan FileObj, done chan int, scan_one_time_only bool) {
 	// walk a directory
 	sleep_time := scanner.Default_sleep_time
 	for {
@@ -114,6 +115,12 @@ func (scanner *SftpScanner) scan(c chan FileObj, done chan int) {
 		} else {
 			sleep_time = scanner.Default_sleep_time
 		}
+
+		if scan_one_time_only {
+			// scanner.logger.Info("scan only one time")
+			os.Exit(0)
+		}
+		// scanner.logger.Info("sleep and scan again")
 		// scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
 		time.Sleep(time.Duration(sleep_time) * time.Second)
 	}
@@ -153,10 +160,10 @@ func (scanner *SftpScanner) init() {
 	}
 }
 
-func (scanner *SftpScanner) Start(c chan FileObj, done chan int) {
+func (scanner *SftpScanner) Start(c chan FileObj, done chan int, scan_one_time_only bool) {
 	scanner.init()
 	scanner.started = true
-	scanner.scan(c, done)
+	scanner.scan(c, done, scan_one_time_only)
 }
 
 func (scanner *SftpScanner) Stop() {

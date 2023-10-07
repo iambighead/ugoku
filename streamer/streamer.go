@@ -206,7 +206,7 @@ func NewStreamer(streamer_config config.StreamerConfig) {
 	if streamer_config.SleepInterval > 0 {
 		new_scanner.Default_sleep_time = streamer_config.SleepInterval
 	}
-	go new_scanner.Start(c, done)
+	go new_scanner.Start(c, done, false)
 }
 
 // --------------------------------

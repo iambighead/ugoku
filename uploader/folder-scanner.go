@@ -42,7 +42,7 @@ type FolderScanner struct {
 	LocalFolderMap     map[string]FileLookupObj
 }
 
-func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_changes bool) {
+func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_changes bool, scan_one_time_only bool) {
 
 	sleep_time := scanner.Default_sleep_time
 	currnet_pass := 0
@@ -146,6 +146,11 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 			}
 		}
 
+		if scan_one_time_only {
+			// scanner.logger.Info("scan only one time")
+			os.Exit(0)
+		}
+		// scanner.logger.Info("sleep and scan again")
 		// scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
 		time.Sleep(time.Duration(sleep_time) * time.Second)
 	}
@@ -160,16 +165,16 @@ func (scanner *FolderScanner) init() {
 	}
 }
 
-func (scanner *FolderScanner) Start(c chan FileObj, done chan int) {
+func (scanner *FolderScanner) Start(c chan FileObj, done chan int, scan_one_time_only bool) {
 	scanner.init()
 	scanner.started = true
-	scanner.scan(c, done, false)
+	scanner.scan(c, done, false, scan_one_time_only)
 }
 
-func (scanner *FolderScanner) StartWithWatcher(c chan FileObj, done chan int) {
+func (scanner *FolderScanner) StartWithWatcher(c chan FileObj, done chan int, scan_one_time_only bool) {
 	scanner.init()
 	scanner.started = true
-	scanner.scan(c, done, true)
+	scanner.scan(c, done, true, scan_one_time_only)
 }
 
 func (scanner *FolderScanner) Stop() {

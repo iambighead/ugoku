@@ -137,7 +137,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		}
 		return errors.New("upload failed")
 	case <-global_stop_channel:
-		return errors.New(fmt.Sprintf("upload cancelled due to stop signal: %s", file_to_upload))
+		return fmt.Errorf("upload cancelled due to stop signal: %s", file_to_upload)
 	}
 
 }
@@ -232,7 +232,7 @@ func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
 	}
 	var new_scanner FolderScanner
 	new_scanner.UploaderConfig = uploaderer_config
-	go new_scanner.Start(c, done)
+	go new_scanner.Start(c, done, false)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)

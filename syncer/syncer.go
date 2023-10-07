@@ -24,7 +24,7 @@ func init() {
 
 // -------------------------
 
-func startSyncServer(syncer_config config.SyncerConfig) {
+func startSyncServer(syncer_config config.SyncerConfig, mode string) {
 
 	// make a channel
 	c := make(chan downloader.FileObj, syncer_config.Worker*2)
@@ -51,10 +51,14 @@ func startSyncServer(syncer_config config.SyncerConfig) {
 	}
 
 	new_scanner.DownloaderConfig = proxyconfig
-	go new_scanner.Start(c, done)
+	if mode == "onetime" {
+		go new_scanner.Start(c, done, true)
+	} else {
+		go new_scanner.Start(c, done, false)
+	}
 }
 
-func startSyncLocal(syncer_config config.SyncerConfig) {
+func startSyncLocal(syncer_config config.SyncerConfig, mode string) {
 
 	// make a channel
 	c := make(chan uploader.FileObj, syncer_config.Worker*2)
@@ -80,7 +84,12 @@ func startSyncLocal(syncer_config config.SyncerConfig) {
 		new_scanner.Default_sleep_time = syncer_config.SleepInterval
 	}
 	new_scanner.UploaderConfig = proxyconfig
-	go new_scanner.StartWithWatcher(c, done)
+
+	if mode == "onetime" {
+		go new_scanner.StartWithWatcher(c, done, true)
+	} else {
+		go new_scanner.StartWithWatcher(c, done, false)
+	}
 }
 
 func NewSyncer(syncer_config config.SyncerConfig, tf string) {
@@ -88,9 +97,23 @@ func NewSyncer(syncer_config config.SyncerConfig, tf string) {
 
 	switch syncer_config.Mode {
 	case "server":
-		startSyncServer(syncer_config)
+		startSyncServer(syncer_config, "")
 	case "local":
-		startSyncLocal(syncer_config)
+		startSyncLocal(syncer_config, "")
+	case "both":
+	default:
+
+	}
+}
+
+func NewOneTimeSyncer(syncer_config config.SyncerConfig, tf string) {
+	tempfolder = tf
+
+	switch syncer_config.Mode {
+	case "server":
+		startSyncServer(syncer_config, "onetime")
+	case "local":
+		startSyncLocal(syncer_config, "onetime")
 	case "both":
 	default:
 

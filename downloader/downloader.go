@@ -220,7 +220,7 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	}
 	var new_scanner SftpScanner
 	new_scanner.DownloaderConfig = downloader_config
-	go new_scanner.Start(c, done)
+	go new_scanner.Start(c, done, false)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
