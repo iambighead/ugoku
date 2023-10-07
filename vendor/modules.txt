@@ -38,6 +38,6 @@ golang.org/x/sys/unix
 # gopkg.in/natefinch/lumberjack.v2 v2.0.0
 ## explicit
 gopkg.in/natefinch/lumberjack.v2
-# gopkg.in/yaml.v3 v3.0.0-20220521103104-8f96da9f5d5e
+# gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
