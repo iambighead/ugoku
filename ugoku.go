@@ -56,7 +56,7 @@ func startSyncers(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Info(fmt.Sprintf("started %d uploaders", syncer_started))
+	main_logger.Info(fmt.Sprintf("started %d syncers", syncer_started))
 }
 
 func startStreamers(master_config config.MasterConfig) {
