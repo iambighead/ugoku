@@ -209,4 +209,33 @@ func NewStreamer(streamer_config config.StreamerConfig) {
 	go new_scanner.Start(c, done, false)
 }
 
+func NewOneTimeStreamer(streamer_config config.StreamerConfig) {
+	// tempfolder = tf
+	// make a channel
+	c := make(chan downloader.FileObj, streamer_config.Worker*2)
+	done := make(chan int, streamer_config.Worker*2)
+
+	for i := 0; i < streamer_config.Worker; i++ {
+		var new_streamer SftpStreamer
+		new_streamer.StreamerConfig = streamer_config
+		new_streamer.id = i
+		go new_streamer.Start(c, done)
+	}
+
+	var proxyconfig config.DownloaderConfig
+	proxyconfig.Name = streamer_config.Name
+	proxyconfig.Source = streamer_config.Source
+	proxyconfig.SourceServer = streamer_config.SourceServer
+	proxyconfig.SourcePath = streamer_config.SourcePath
+
+	var new_scanner downloader.SftpScanner
+	new_scanner.DownloaderConfig = proxyconfig
+
+	new_scanner.Default_sleep_time = 60
+	if streamer_config.SleepInterval > 0 {
+		new_scanner.Default_sleep_time = streamer_config.SleepInterval
+	}
+	go new_scanner.Start(c, done, true)
+}
+
 // --------------------------------

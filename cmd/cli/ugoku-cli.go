@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/streamer"
 	"github.com/iambighead/ugoku/syncer"
 	"github.com/iambighead/ugoku/uploader"
 )
@@ -70,6 +72,23 @@ func startSyncers(master_config config.MasterConfig) {
 	}
 }
 
+func startStreamers(master_config config.MasterConfig) {
+
+	streamer_started := 0
+	for _, streamer_config := range master_config.Streamers {
+		if streamer_config.Enabled {
+			streamer.NewOneTimeStreamer(streamer_config)
+			streamer_started++
+		}
+	}
+
+	main_logger.Info(fmt.Sprintf("started %d streamers", streamer_started))
+
+	if streamer_started == 0 {
+		os.Exit(0)
+	}
+}
+
 // --------------------------
 
 func init() {
@@ -112,10 +131,10 @@ func main() {
 
 	if len(os.Args) < 2 {
 		printUsage()
-		return
+		os.Exit(0)
 	}
 
-	cmd := os.Args[1]
+	cmd := strings.ToLower(os.Args[1])
 
 	switch cmd {
 	case "upload":
@@ -126,6 +145,9 @@ func main() {
 		break
 	case "sync":
 		go startSyncers(master_config)
+		break
+	case "stream":
+		go startStreamers(master_config)
 		break
 	default:
 		main_logger.Error("Missing or unknown command")
