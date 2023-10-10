@@ -118,7 +118,7 @@ func printUsage() {
 	main_logger.Info(fmt.Sprintf(""))
 	main_logger.Info(fmt.Sprintf("  ugoku-cli <command>"))
 	main_logger.Info(fmt.Sprintf(""))
-	main_logger.Info(fmt.Sprintf("command can be upload, download, sync"))
+	main_logger.Info(fmt.Sprintf("command can be upload, download, sync, stream"))
 	main_logger.Info(fmt.Sprintf(""))
 	main_logger.Info(fmt.Sprintf("Example:"))
 	main_logger.Info(fmt.Sprintf(""))
