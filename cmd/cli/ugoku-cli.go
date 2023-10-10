@@ -9,12 +9,13 @@ import (
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/internal/version"
 	"github.com/iambighead/ugoku/streamer"
 	"github.com/iambighead/ugoku/syncer"
 	"github.com/iambighead/ugoku/uploader"
 )
 
-const VERSION = "v0.0.1"
+const VERSION = version.UGOKU_VERSION
 
 // --------------------------------
 

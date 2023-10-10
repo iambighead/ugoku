@@ -8,12 +8,13 @@ import (
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/internal/version"
 	"github.com/iambighead/ugoku/streamer"
 	"github.com/iambighead/ugoku/syncer"
 	"github.com/iambighead/ugoku/uploader"
 )
 
-const VERSION = "v0.0.1"
+const VERSION = version.UGOKU_VERSION
 
 // --------------------------------
 
@@ -98,7 +99,7 @@ func init() {
 
 func main() {
 
-	main_logger.Info(fmt.Sprintf("Ugoku started. Version %s", VERSION))
+	main_logger.Info(fmt.Sprintf("ugoku version %s", VERSION))
 
 	go startDownloaders(master_config)
 	go startUploaders(master_config)
