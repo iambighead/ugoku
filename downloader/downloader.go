@@ -22,7 +22,7 @@ import (
 // --------------------------------
 
 var tempfolder string
-var global_stop_channel = make(chan int, 1)
+var global_stop_channel = make(chan int, 10)
 
 func init() {
 }
