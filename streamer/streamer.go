@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
@@ -186,11 +188,14 @@ func NewStreamer(streamer_config config.StreamerConfig) {
 	c := make(chan downloader.FileObj, streamer_config.Worker*2)
 	done := make(chan int, streamer_config.Worker*2)
 
+	streamers := make([]*SftpStreamer, streamer_config.Worker)
+
 	for i := 0; i < streamer_config.Worker; i++ {
 		var new_streamer SftpStreamer
 		new_streamer.StreamerConfig = streamer_config
 		new_streamer.id = i
 		go new_streamer.Start(c, done)
+		streamers[i] = &new_streamer
 	}
 
 	var proxyconfig config.DownloaderConfig
@@ -207,6 +212,23 @@ func NewStreamer(streamer_config config.StreamerConfig) {
 		new_scanner.Default_sleep_time = streamer_config.SleepInterval
 	}
 	go new_scanner.Start(c, done, false)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		fmt.Printf("streamer: signal received: %s\n", sig)
+
+		new_scanner.Stop()
+		for _, this_streamer := range streamers {
+			this_streamer.Stop()
+		}
+
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
+
 }
 
 func NewOneTimeStreamer(streamer_config config.StreamerConfig) {
