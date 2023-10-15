@@ -36,14 +36,12 @@ tasks:
     silent: true
     cmds:
       - echo building for windows
-      - GOOS=windows CGO_ENABLED=0 go build -v cmd/cli/ugoku-cli.go
       - GOOS=windows CGO_ENABLED=0 go build -v cmd/service/ugoku.go
 
   build_linux:
     silent: true
     cmds:
       - echo building for linux
-      - GOOS=linux CGO_ENABLED=0 go build -v cmd/cli/ugoku-cli.go
       - GOOS=linux CGO_ENABLED=0 go build -v cmd/service/ugoku.go
 
   cleanup_build:
@@ -77,7 +75,6 @@ tasks:
     cmds:
       - echo copying assets for windows
       - mv ugoku.exe build/win/
-      - mv ugoku-cli.exe build/win/
       - cp config.template.yaml build/win/config.template.yaml
       - cp config.template.yaml build/win/config.yaml
 
@@ -86,7 +83,6 @@ tasks:
     cmds:
       - echo copying assets for linux
       - mv ugoku build/linux/
-      - mv ugoku-cli build/linux/
       - cp config.template.yaml build/linux/config.template.yaml
       - cp config.template.yaml build/linux/config.yaml
 
