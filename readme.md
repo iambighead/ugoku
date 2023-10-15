@@ -17,6 +17,47 @@ This is a project which I try to apply what I learned in Golang. That said, I do
 - Streamer (SFTP Server to Server transfer via Ugoku as bridge, without writting to local storage)
 - build in logger
 
+## Usage
+
+The ugoku binary can be ran as both a command line tool and service.
+
+Service mode:
+    
+    ugoku serve
+    
+
+Command line mode:
+    
+    ugoku [ upload | download | sync | stream ]
+    
+
+In service mode, ugoku will not quit and keep scan for files for upload/download.
+
+In other mode (upload,downlod,sync,stream), it will run/scan once, finish the operation (upload/download etc) than exit. This could be good for scheduled cronjob.
+
+## Building
+
+Dependencies
+- Golang runtime
+- Task (https://github.com/go-task/task)
+
+
+Just run this from command line in ugoku repo folder
+
+    
+    task build
+    
+
+To build for linux/windows only
+
+    
+    task build_linux
+    
+    or
+    
+    task build_windows
+
+
 ## Todo
 - Archiving support for downloader/uploader/streamer
 
