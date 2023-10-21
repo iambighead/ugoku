@@ -160,10 +160,19 @@ func (streamer *SftpStreamer) init() {
 
 func (streamer *SftpStreamer) Stop() {
 	streamer.started = false
-	streamer.sftp_client_source.Close()
-	streamer.ssh_client_source.Close()
-	streamer.sftp_client_target.Close()
-	streamer.ssh_client_target.Close()
+	if streamer.sftp_client_source != nil {
+		streamer.sftp_client_source.Close()
+	}
+	if streamer.ssh_client_source != nil {
+		streamer.ssh_client_source.Close()
+	}
+	if streamer.sftp_client_target != nil {
+		streamer.sftp_client_target.Close()
+	}
+	if streamer.ssh_client_target != nil {
+		streamer.ssh_client_target.Close()
+	}
+	streamer.logger.Info("stopped")
 }
 
 // --------------------------------

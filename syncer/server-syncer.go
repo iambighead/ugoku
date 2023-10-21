@@ -152,8 +152,13 @@ func (syncer *SftpServerSyncer) init() {
 func (syncer *SftpServerSyncer) Stop() {
 	syncer.logger.Info("stopping")
 	syncer.started = false
-	syncer.sftp_client.Close()
-	syncer.ssh_client.Close()
+	if syncer.sftp_client != nil {
+		syncer.sftp_client.Close()
+	}
+	if syncer.ssh_client != nil {
+		syncer.ssh_client.Close()
+	}
+	syncer.logger.Info("stopped")
 }
 
 // --------------------------------
