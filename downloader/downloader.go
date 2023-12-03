@@ -142,7 +142,8 @@ func (dler *SftpDownloader) connectAndGetClients() error {
 		dler.SourceServer.Port,
 		dler.SourceServer.User,
 		dler.SourceServer.Password,
-		dler.SourceServer.KeyFile)
+		dler.SourceServer.KeyFile,
+		"")
 	if err != nil {
 		return err
 	}
