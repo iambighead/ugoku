@@ -44,6 +44,7 @@ func getConfigForCertLogin(user string, keyfile string, certfile string) (*ssh.C
 
 	cert, _, _, _, err := ssh.ParseAuthorizedKey(certBts)
 	if err != nil {
+		return nil, err
 	}
 
 	// create a signer using both the certificate and the private key:
