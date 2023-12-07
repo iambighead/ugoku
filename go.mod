@@ -1,6 +1,6 @@
 module github.com/iambighead/ugoku
 
-go 1.18
+go 1.21.4
 
 require (
 	github.com/iambighead/goutils v0.0.3
