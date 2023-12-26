@@ -98,10 +98,13 @@ servers:
     password: Password
     # key file to use, if both key file and
     # password defined, key file will be used
-    keyfile: id_rsa
+    keyfile: path/to/key/file
+    # for cert based auth
+    # both cert and key file must be defined
+    cerfile: path/to/cert/file
   - name: server2
     ip: 192.168.1.2
     port: 22
     user: user
     password: Password
-    keyfile: id_rsa
+    keyfile: path/to/cert/file
