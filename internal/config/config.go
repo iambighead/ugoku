@@ -14,6 +14,7 @@ type ServerConfig struct {
 	User     string
 	Password string
 	KeyFile  string
+	CertFile string
 }
 
 type DownloaderConfig struct {

@@ -95,7 +95,7 @@ func (syncer *SftpLocalSyncer) connectAndGetClients() error {
 		syncer.SyncServer.User,
 		syncer.SyncServer.Password,
 		syncer.SyncServer.KeyFile,
-		"")
+		syncer.SyncServer.CertFile)
 	if err != nil {
 		return err
 	}

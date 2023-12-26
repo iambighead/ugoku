@@ -152,7 +152,7 @@ func (uper *SftpUploader) connectAndGetClients() error {
 		uper.TargetServer.User,
 		uper.TargetServer.Password,
 		uper.TargetServer.KeyFile,
-		"")
+		uper.TargetServer.CertFile)
 	if err != nil {
 		return err
 	}

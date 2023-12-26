@@ -136,7 +136,7 @@ func (scanner *SftpScanner) connectAndGetClients() error {
 		scanner.SourceServer.User,
 		scanner.SourceServer.Password,
 		scanner.SourceServer.KeyFile,
-		"")
+		scanner.SourceServer.CertFile)
 	if err != nil {
 		return err
 	}

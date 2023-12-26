@@ -116,7 +116,7 @@ func (streamer *SftpStreamer) connectAndGetClients() error {
 		streamer.SourceServer.User,
 		streamer.SourceServer.Password,
 		streamer.SourceServer.KeyFile,
-		"")
+		streamer.SourceServer.CertFile)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (streamer *SftpStreamer) connectAndGetClients() error {
 		streamer.TargetServer.User,
 		streamer.TargetServer.Password,
 		streamer.TargetServer.KeyFile,
-		"")
+		streamer.TargetServer.CertFile)
 	if err != nil {
 		return err
 	}
