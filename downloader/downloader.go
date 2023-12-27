@@ -158,14 +158,19 @@ func (dler *SftpDownloader) connectAndGetClients() error {
 func (dler *SftpDownloader) init() {
 	dler.started = false
 	dler.logger = logger.NewLogger(fmt.Sprintf("downloader[%s:%d]", dler.Name, dler.id))
-
+	next_sleep := 2
 	for {
 		err := dler.connectAndGetClients()
 		if err == nil {
 			break
 		}
 		dler.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(next_sleep) * time.Second)
+		if next_sleep < 300 {
+			next_sleep = next_sleep * 2
+		} else {
+			next_sleep = 600
+		}
 	}
 }
 
