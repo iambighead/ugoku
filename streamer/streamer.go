@@ -13,6 +13,7 @@ import (
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/internal/sleepytime"
 	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -147,6 +148,8 @@ func (streamer *SftpStreamer) init() {
 	streamer.started = false
 	streamer.logger = logger.NewLogger(fmt.Sprintf("streamer[%s:%d]", streamer.Name, streamer.id))
 
+	var sleepy sleepytime.Sleepytime
+	sleepy.Reset(2, 600)
 	for {
 		err := streamer.connectAndGetClients()
 		if err == nil {
@@ -154,7 +157,7 @@ func (streamer *SftpStreamer) init() {
 		}
 		streamer.Stop()
 		streamer.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(sleepy.GetNextSleep()) * time.Second)
 	}
 }
 

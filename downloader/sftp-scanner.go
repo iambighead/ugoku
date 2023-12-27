@@ -8,6 +8,7 @@ import (
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/internal/sleepytime"
 	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -153,13 +154,15 @@ func (scanner *SftpScanner) init() {
 		scanner.Default_sleep_time = 1
 	}
 
+	var sleepy sleepytime.Sleepytime
+	sleepy.Reset(2, 600)
 	for {
 		err := scanner.connectAndGetClients()
 		if err == nil {
 			break
 		}
 		scanner.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(sleepy.GetNextSleep()) * time.Second)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/internal/sleepytime"
 	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/iambighead/ugoku/uploader"
 	"github.com/pkg/sftp"
@@ -111,13 +112,15 @@ func (syncer *SftpLocalSyncer) init() {
 	syncer.started = false
 	syncer.logger = logger.NewLogger(fmt.Sprintf("local-syncer[%s:%d]", syncer.Name, syncer.id))
 
+	var sleepy sleepytime.Sleepytime
+	sleepy.Reset(2, 600)
 	for {
 		err := syncer.connectAndGetClients()
 		if err == nil {
 			break
 		}
 		syncer.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(sleepy.GetNextSleep()) * time.Second)
 	}
 }
 

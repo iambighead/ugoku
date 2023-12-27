@@ -13,6 +13,7 @@ import (
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/internal/config"
+	"github.com/iambighead/ugoku/internal/sleepytime"
 	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -168,6 +169,8 @@ func (uper *SftpUploader) init() {
 	uper.started = false
 	uper.logger = logger.NewLogger(fmt.Sprintf("uploader[%s:%d]", uper.Name, uper.id))
 
+	var sleepy sleepytime.Sleepytime
+	sleepy.Reset(2, 600)
 	for {
 		err := uper.connectAndGetClients()
 		if err == nil {
@@ -175,6 +178,7 @@ func (uper *SftpUploader) init() {
 		}
 		uper.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
 		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(sleepy.GetNextSleep()) * time.Second)
 	}
 }
 
