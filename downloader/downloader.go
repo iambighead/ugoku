@@ -24,8 +24,10 @@ import (
 
 var tempfolder string
 var global_stop_channel = make(chan int, 10)
+var download_manager_logger logger.Logger
 
 func init() {
+	download_manager_logger = logger.NewLogger("downloader-manager")
 }
 
 // --------------------------------
@@ -247,6 +249,7 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 				new_downloader.Start(c, done)
 				new_downloader.Stop()
 				downloaders[myid] = nil
+				download_manager_logger.Info(fmt.Sprintf("downloader [%d] exited, will recreate", myid))
 			}
 		}(i)
 	}
@@ -258,6 +261,7 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 			new_scanner.Start(c, done, false)
 			new_scanner.Stop()
 			new_scanner = nil
+			download_manager_logger.Info("scanner exited, will recreate")
 		}
 	}()
 }
