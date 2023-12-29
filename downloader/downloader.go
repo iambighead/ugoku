@@ -25,7 +25,6 @@ import (
 var tempfolder string
 var global_stop_channel = make(chan int, 10)
 var download_manager_logger logger.Logger
-var downloader_to_exit bool = false
 
 func init() {
 	download_manager_logger = logger.NewLogger("downloader-manager")
@@ -42,12 +41,13 @@ func init() {
 
 type SftpDownloader struct {
 	config.DownloaderConfig
-	id          int
-	prefix      string
-	started     bool
-	logger      logger.Logger
-	sftp_client *sftp.Client
-	ssh_client  *ssh.Client
+	id                 int
+	prefix             string
+	started            bool
+	logger             logger.Logger
+	sftp_client        *sftp.Client
+	ssh_client         *ssh.Client
+	downloader_to_exit bool
 }
 
 // --------------------------------
@@ -131,10 +131,10 @@ func (dler *SftpDownloader) download(file_to_download string, size int64) error 
 		if result > 0 {
 			return nil
 		}
-		downloader_to_exit = true
+		dler.downloader_to_exit = true
 		return errors.New("download failed")
 	case <-global_stop_channel:
-		downloader_to_exit = true
+		dler.downloader_to_exit = true
 		return fmt.Errorf("download cancelled due to stop signal: %s", file_to_download)
 	}
 }
@@ -151,7 +151,7 @@ func (dler *SftpDownloader) connectAndGetClients() error {
 		dler.SourceServer.KeyFile,
 		dler.SourceServer.CertFile)
 	if err != nil {
-		downloader_to_exit = true
+		dler.downloader_to_exit = true
 		return err
 	}
 	dler.logger.Info(fmt.Sprintf("connected to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
@@ -181,7 +181,7 @@ func (dler *SftpDownloader) init() {
 
 func (dler *SftpDownloader) Stop() {
 	dler.started = false
-	downloader_to_exit = true
+	dler.downloader_to_exit = true
 	global_stop_channel <- 1
 	if dler.sftp_client != nil {
 		dler.sftp_client.Close()
@@ -217,7 +217,7 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 	// check forever if downloader is in healthy state
 	for {
 		time.Sleep(2 * time.Second)
-		if downloader_to_exit {
+		if dler.downloader_to_exit {
 			return
 		}
 	}
