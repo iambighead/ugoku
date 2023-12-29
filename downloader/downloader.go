@@ -23,6 +23,7 @@ import (
 // --------------------------------
 
 var tempfolder string
+var term_signal bool
 var global_stop_channel = make(chan int, 10)
 var download_manager_logger logger.Logger
 
@@ -87,6 +88,8 @@ func (dler *SftpDownloader) download(file_to_download string, size int64) error 
 		source, err := dler.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
 		if err != nil {
 			dler.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s: %s", dler.Source, file_to_download, err.Error()))
+			dler.downloader_to_exit = true
+			time.Sleep(1100 * time.Millisecond)
 			done <- 0
 			return
 		}
@@ -95,6 +98,8 @@ func (dler *SftpDownloader) download(file_to_download string, size int64) error 
 		nBytes, tempfile_path, err := sftplibs.DownloadToTemp(ctxTimeout, tempfolder, source, dler.prefix)
 		if err != nil && !cancelled {
 			dler.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
+			dler.downloader_to_exit = true
+			time.Sleep(1100 * time.Millisecond)
 			done <- 0
 			return
 		}
@@ -131,11 +136,11 @@ func (dler *SftpDownloader) download(file_to_download string, size int64) error 
 		if result > 0 {
 			return nil
 		}
-		dler.downloader_to_exit = true
 		return errors.New("download failed")
 	case <-global_stop_channel:
+		dler.logger.Info("global stop channel: setting downloader exit to true")
 		dler.downloader_to_exit = true
-		return fmt.Errorf("download cancelled due to stop signal: %s", file_to_download)
+		return fmt.Errorf("download cancelled: %s", file_to_download)
 	}
 }
 
@@ -151,7 +156,6 @@ func (dler *SftpDownloader) connectAndGetClients() error {
 		dler.SourceServer.KeyFile,
 		dler.SourceServer.CertFile)
 	if err != nil {
-		dler.downloader_to_exit = true
 		return err
 	}
 	dler.logger.Info(fmt.Sprintf("connected to server %s with user %s", dler.SourceServer.Ip, dler.SourceServer.User))
@@ -164,6 +168,7 @@ func (dler *SftpDownloader) connectAndGetClients() error {
 
 func (dler *SftpDownloader) init() {
 	dler.started = false
+	dler.downloader_to_exit = false
 	dler.logger = logger.NewLogger(fmt.Sprintf("downloader[%s:%d]", dler.Name, dler.id))
 	var sleepy sleepytime.Sleepytime
 	sleepy.Reset(2, 600)
@@ -182,7 +187,6 @@ func (dler *SftpDownloader) init() {
 func (dler *SftpDownloader) Stop() {
 	dler.started = false
 	dler.downloader_to_exit = true
-	global_stop_channel <- 1
 	if dler.sftp_client != nil {
 		dler.sftp_client.Close()
 	}
@@ -205,18 +209,21 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 			file_to_download = fo.Path
 			dler.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
 			download_err := dler.download(file_to_download, fo.Stat.Size())
-			if download_err != nil {
-				dler.logger.Error(fmt.Sprintf("download error: %s", download_err.Error()))
-			} else {
+			if download_err == nil {
+				// 	dler.logger.Error(fmt.Sprintf("download error: %s", download_err.Error()))
+				// } else {
 				dler.removeSrc(file_to_download)
 			}
 			done <- 1
+			if dler.downloader_to_exit {
+				return
+			}
 		}
 	}()
 
 	// check forever if downloader is in healthy state
 	for {
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		if dler.downloader_to_exit {
 			return
 		}
@@ -234,7 +241,10 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 
 	go func() {
 		sig := <-sigs
+		term_signal = true
 		fmt.Printf("downloader: signal received: %s\n", sig)
+
+		global_stop_channel <- 1
 
 		if new_scanner != nil {
 			new_scanner.Stop()
@@ -264,6 +274,9 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 				new_downloader.Start(c, done)
 				new_downloader.Stop()
 				downloaders[myid] = nil
+				if term_signal {
+					return
+				}
 				download_manager_logger.Info(fmt.Sprintf("downloader [%d] exited, will recreate", myid))
 			}
 		}(i)
@@ -276,6 +289,9 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 			new_scanner.Start(c, done, false)
 			new_scanner.Stop()
 			new_scanner = nil
+			if term_signal {
+				return
+			}
 			download_manager_logger.Info("scanner exited, will recreate")
 		}
 	}()
