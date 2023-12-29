@@ -216,7 +216,7 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 
 	// check forever if downloader is in healthy state
 	for {
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 		if downloader_to_exit {
 			return
 		}
