@@ -3,7 +3,6 @@ package downloader
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
@@ -42,7 +41,7 @@ type FileObj struct {
 	Stat fs.FileInfo
 }
 
-func (scanner *SftpScanner) ScanOnce(c chan FileObj, done chan int) bool {
+func (scanner *SftpScanner) scan_once(c chan FileObj, done chan int) bool {
 	files_found := false
 	var dispatched int
 	w := scanner.sftp_client.Walk(scanner.SourcePath)
@@ -55,7 +54,8 @@ func (scanner *SftpScanner) ScanOnce(c chan FileObj, done chan int) bool {
 
 		if w.Err() != nil {
 			scanner.logger.Debug(w.Err().Error())
-			continue
+			scanner.started = false
+			return false
 		}
 		if !w.Stat().IsDir() {
 			files_found = true
@@ -107,12 +107,12 @@ func (scanner *SftpScanner) scan(c chan FileObj, done chan int, scan_one_time_on
 			return
 		}
 
-		files_found := scanner.ScanOnce(c, done)
+		files_found := scanner.scan_once(c, done)
 
 		if scan_one_time_only {
 			// scanner.logger.Info("scan only one time")
 			time.Sleep(1 * time.Second)
-			os.Exit(0)
+			return
 		}
 
 		if !files_found {
@@ -125,7 +125,9 @@ func (scanner *SftpScanner) scan(c chan FileObj, done chan int, scan_one_time_on
 
 		// scanner.logger.Info("sleep and scan again")
 		// scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
-		time.Sleep(time.Duration(sleep_time) * time.Second)
+		if scanner.started {
+			time.Sleep(time.Duration(sleep_time) * time.Second)
+		}
 	}
 }
 
