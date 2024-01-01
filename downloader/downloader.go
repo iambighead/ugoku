@@ -28,7 +28,7 @@ var global_stop_channel = make(chan int, 10)
 var download_manager_logger logger.Logger
 
 func init() {
-	download_manager_logger = logger.NewLogger("downloader-manager")
+	download_manager_logger = logger.NewLogger("download-manager")
 }
 
 // --------------------------------
