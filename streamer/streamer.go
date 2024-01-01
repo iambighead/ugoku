@@ -20,10 +20,13 @@ import (
 )
 
 // --------------------------------
+var term_signal bool
+var stream_manager_logger logger.Logger
 
 // var tempfolder string
 
 func init() {
+	stream_manager_logger = logger.NewLogger("stream-manager")
 }
 
 // --------------------------------
@@ -45,6 +48,7 @@ type SftpStreamer struct {
 	ssh_client_source  *ssh.Client
 	sftp_client_target *sftp.Client
 	ssh_client_target  *ssh.Client
+	streamer_to_exit   bool
 }
 
 // --------------------------------
@@ -63,7 +67,7 @@ func (streamer *SftpStreamer) removeSrc(file_to_download string) {
 	}
 }
 
-func (streamer *SftpStreamer) stream(file_to_download string) {
+func (streamer *SftpStreamer) stream(file_to_download string) bool {
 
 	upload_source_relative_path := strings.Replace(file_to_download, streamer.SourcePath, "", 1)
 	output_file := filepath.Join(streamer.TargetPath, upload_source_relative_path)
@@ -75,28 +79,28 @@ func (streamer *SftpStreamer) stream(file_to_download string) {
 	err := streamer.sftp_client_target.MkdirAll(output_parent_folder)
 	if err != nil {
 		streamer.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", streamer.Target, output_parent_folder, err.Error()))
-		return
+		return false
 	}
 
 	start_time := time.Now().UnixMilli()
 	source, err := streamer.sftp_client_source.OpenFile(file_to_download, os.O_RDONLY)
 	if err != nil {
 		streamer.logger.Error(fmt.Sprintf("unable to open source file: %s: %s: %s", streamer.Source, file_to_download, err.Error()))
-		return
+		return false
 	}
 	defer source.Close()
 
 	target, openerr := streamer.sftp_client_target.Create(output_file)
 	if openerr != nil {
 		streamer.logger.Error(fmt.Sprintf("error opening target file: %s:%s: %s", streamer.Target, output_file, err.Error()))
-		return
+		return false
 	}
 	defer target.Close()
 
 	nBytes, err := io.Copy(target, source)
 	if err != nil {
 		streamer.logger.Error(fmt.Sprintf("error streaming file: %s: %s", file_to_download, err.Error()))
-		return
+		return false
 	}
 	end_time := time.Now().UnixMilli()
 
@@ -105,6 +109,7 @@ func (streamer *SftpStreamer) stream(file_to_download string) {
 		time_taken = 1
 	}
 	streamer.logger.Info(fmt.Sprintf("streamed %s with %d bytes in %d ms, %.1f mbps", file_to_download, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
+	return true
 }
 
 // --------------------------------
@@ -146,6 +151,7 @@ func (streamer *SftpStreamer) connectAndGetClients() error {
 
 func (streamer *SftpStreamer) init() {
 	streamer.started = false
+	streamer.streamer_to_exit = false
 	streamer.logger = logger.NewLogger(fmt.Sprintf("streamer[%s:%d]", streamer.Name, streamer.id))
 
 	var sleepy sleepytime.Sleepytime
@@ -165,6 +171,7 @@ func (streamer *SftpStreamer) init() {
 
 func (streamer *SftpStreamer) Stop() {
 	streamer.started = false
+	streamer.streamer_to_exit = true
 	if streamer.sftp_client_source != nil {
 		streamer.sftp_client_source.Close()
 	}
@@ -187,51 +194,44 @@ func (streamer *SftpStreamer) Start(c chan downloader.FileObj, done chan int) {
 	streamer.started = true
 	streamer.prefix = fmt.Sprintf("%s%d", streamer.Name, streamer.id)
 	var file_to_download string
+	go func() {
+		for {
+			if !streamer.started {
+				return
+			}
+			file_to_download = (<-c).Path
+			streamer.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
+			if streamer.stream(file_to_download) {
+				streamer.removeSrc(file_to_download)
+			} else {
+				streamer.streamer_to_exit = true
+			}
+			done <- 1
+			if streamer.streamer_to_exit {
+				return
+			}
+		}
+	}()
+
 	for {
-		file_to_download = (<-c).Path
-		streamer.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_download))
-		streamer.stream(file_to_download)
-		streamer.removeSrc(file_to_download)
-		done <- 1
+		time.Sleep(1 * time.Second)
+		if streamer.streamer_to_exit {
+			return
+		}
 	}
 }
 
 func NewStreamer(streamer_config config.StreamerConfig) {
 	// tempfolder = tf
-	// make a channel
-	c := make(chan downloader.FileObj, streamer_config.Worker*2)
-	done := make(chan int, streamer_config.Worker*2)
-
 	streamers := make([]*SftpStreamer, streamer_config.Worker)
-
-	for i := 0; i < streamer_config.Worker; i++ {
-		var new_streamer SftpStreamer
-		new_streamer.StreamerConfig = streamer_config
-		new_streamer.id = i
-		go new_streamer.Start(c, done)
-		streamers[i] = &new_streamer
-	}
-
-	var proxyconfig config.DownloaderConfig
-	proxyconfig.Name = streamer_config.Name
-	proxyconfig.Source = streamer_config.Source
-	proxyconfig.SourceServer = streamer_config.SourceServer
-	proxyconfig.SourcePath = streamer_config.SourcePath
-
-	var new_scanner downloader.SftpScanner
-	new_scanner.DownloaderConfig = proxyconfig
-
-	new_scanner.Default_sleep_time = 60
-	if streamer_config.SleepInterval > 0 {
-		new_scanner.Default_sleep_time = streamer_config.SleepInterval
-	}
-	go new_scanner.Start(c, done, false)
+	var new_scanner *downloader.SftpScanner
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigs
+		term_signal = true
 		fmt.Printf("streamer: signal received: %s\n", sig)
 
 		new_scanner.Stop()
@@ -243,19 +243,28 @@ func NewStreamer(streamer_config config.StreamerConfig) {
 		os.Exit(0)
 	}()
 
-}
-
-func NewOneTimeStreamer(streamer_config config.StreamerConfig) {
-	// tempfolder = tf
 	// make a channel
 	c := make(chan downloader.FileObj, streamer_config.Worker*2)
 	done := make(chan int, streamer_config.Worker*2)
 
 	for i := 0; i < streamer_config.Worker; i++ {
-		var new_streamer SftpStreamer
-		new_streamer.StreamerConfig = streamer_config
-		new_streamer.id = i
-		go new_streamer.Start(c, done)
+		go func(myid int) {
+			for {
+				var new_streamer SftpStreamer
+				new_streamer.StreamerConfig = streamer_config
+				new_streamer.id = myid
+				streamers[myid] = &new_streamer
+				new_streamer.Start(c, done)
+				stream_manager_logger.Debug("return from start and calling streamer stop")
+				fmt.Printf("NewStreamer calling stop\n")
+				new_streamer.Stop()
+				streamers[myid] = nil
+				if term_signal {
+					return
+				}
+				stream_manager_logger.Info(fmt.Sprintf("streamer [%d] exited, will recreate", myid))
+			}
+		}(i)
 	}
 
 	var proxyconfig config.DownloaderConfig
@@ -264,14 +273,81 @@ func NewOneTimeStreamer(streamer_config config.StreamerConfig) {
 	proxyconfig.SourceServer = streamer_config.SourceServer
 	proxyconfig.SourcePath = streamer_config.SourcePath
 
-	var new_scanner downloader.SftpScanner
-	new_scanner.DownloaderConfig = proxyconfig
+	go func() {
+		for {
+			new_scanner = new(downloader.SftpScanner)
+			new_scanner.DownloaderConfig = proxyconfig
+			new_scanner.Default_sleep_time = 60
+			if streamer_config.SleepInterval > 0 {
+				new_scanner.Default_sleep_time = streamer_config.SleepInterval
+			}
+			new_scanner.Start(c, done, false)
+			new_scanner.Stop()
+			new_scanner = nil
+			if term_signal {
+				return
+			}
+			stream_manager_logger.Info("scanner exited, will recreate")
+		}
+	}()
 
-	new_scanner.Default_sleep_time = 60
-	if streamer_config.SleepInterval > 0 {
-		new_scanner.Default_sleep_time = streamer_config.SleepInterval
+}
+
+func NewOneTimeStreamer(streamer_config config.StreamerConfig) {
+	// tempfolder = tf
+	streamers := make([]*SftpStreamer, streamer_config.Worker)
+	var new_scanner *downloader.SftpScanner
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		term_signal = true
+		fmt.Printf("streamer: signal received: %s\n", sig)
+
+		new_scanner.Stop()
+		for _, this_streamer := range streamers {
+			this_streamer.Stop()
+		}
+
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
+
+	// make a channel
+	c := make(chan downloader.FileObj, streamer_config.Worker*2)
+	done := make(chan int, streamer_config.Worker*2)
+
+	for i := 0; i < streamer_config.Worker; i++ {
+		go func(myid int) {
+			var new_streamer SftpStreamer
+			new_streamer.StreamerConfig = streamer_config
+			new_streamer.id = myid
+			streamers[myid] = &new_streamer
+			new_streamer.Start(c, done)
+			new_streamer.Stop()
+			streamers[myid] = nil
+		}(i)
 	}
-	go new_scanner.Start(c, done, true)
+
+	var proxyconfig config.DownloaderConfig
+	proxyconfig.Name = streamer_config.Name
+	proxyconfig.Source = streamer_config.Source
+	proxyconfig.SourceServer = streamer_config.SourceServer
+	proxyconfig.SourcePath = streamer_config.SourcePath
+
+	go func() {
+		new_scanner = new(downloader.SftpScanner)
+		new_scanner.DownloaderConfig = proxyconfig
+		new_scanner.Default_sleep_time = 60
+		if streamer_config.SleepInterval > 0 {
+			new_scanner.Default_sleep_time = streamer_config.SleepInterval
+		}
+		new_scanner.Start(c, done, true)
+		new_scanner.Stop()
+		new_scanner = nil
+	}()
 }
 
 // --------------------------------
