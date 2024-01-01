@@ -64,6 +64,8 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 			// }
 		} else {
 			scanner.logger.Error(fmt.Sprintf("failed to scan source folder: %s", err.Error()))
+			scanner.started = false
+			return
 		}
 
 		// time.Sleep(1000 * time.Millisecond)
@@ -149,11 +151,13 @@ func (scanner *FolderScanner) scan(c chan FileObj, done chan int, watch_for_chan
 		if scan_one_time_only {
 			// scanner.logger.Info("scan only one time")
 			time.Sleep(1 * time.Second)
-			os.Exit(0)
+			return
 		}
 		// scanner.logger.Info("sleep and scan again")
 		// scanner.logger.Debug(fmt.Sprintf("sleep for %d seconds", sleep_time))
-		time.Sleep(time.Duration(sleep_time) * time.Second)
+		if scanner.started {
+			time.Sleep(time.Duration(sleep_time) * time.Second)
+		}
 	}
 }
 
