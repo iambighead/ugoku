@@ -340,12 +340,10 @@ func NewOneTimeDownloader(downloader_config config.DownloaderConfig, tf string) 
 		}(i)
 	}
 
-	go func() {
-		new_scanner = new(SftpScanner)
-		new_scanner.DownloaderConfig = downloader_config
-		new_scanner.Start(c, done, true)
-		new_scanner.Stop()
-		new_scanner = nil
-		os.Exit(0)
-	}()
+	new_scanner = new(SftpScanner)
+	new_scanner.DownloaderConfig = downloader_config
+	new_scanner.Start(c, done, true)
+	new_scanner.Stop()
+	new_scanner = nil
+	os.Exit(0)
 }

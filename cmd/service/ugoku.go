@@ -27,7 +27,7 @@ func startDownloaders(master_config config.MasterConfig) {
 	downloader_started := 0
 	for _, downloader_config := range master_config.Downloaders {
 		if downloader_config.Enabled {
-			downloader.NewOneTimeDownloader(downloader_config, master_config.General.TempFolder)
+			go downloader.NewOneTimeDownloader(downloader_config, master_config.General.TempFolder)
 			downloader_started++
 		}
 	}
@@ -37,6 +37,7 @@ func startDownloaders(master_config config.MasterConfig) {
 	if downloader_started == 0 {
 		os.Exit(0)
 	}
+	<-make(chan struct{})
 }
 
 func startUploaders(master_config config.MasterConfig) {
@@ -54,6 +55,7 @@ func startUploaders(master_config config.MasterConfig) {
 	if uploader_started == 0 {
 		os.Exit(0)
 	}
+	<-make(chan struct{})
 }
 
 func startSyncers(master_config config.MasterConfig) {
@@ -71,6 +73,7 @@ func startSyncers(master_config config.MasterConfig) {
 	if syncer_started == 0 {
 		os.Exit(0)
 	}
+	<-make(chan struct{})
 }
 
 func startStreamers(master_config config.MasterConfig) {
@@ -88,6 +91,7 @@ func startStreamers(master_config config.MasterConfig) {
 	if streamer_started == 0 {
 		os.Exit(0)
 	}
+	<-make(chan struct{})
 }
 
 // --------------------------
@@ -201,16 +205,16 @@ func main() {
 
 	switch cmd {
 	case "upload":
-		go startUploaders(master_config)
+		startUploaders(master_config)
 		break
 	case "download":
-		go startDownloaders(master_config)
+		startDownloaders(master_config)
 		break
 	case "sync":
-		go startSyncers(master_config)
+		startSyncers(master_config)
 		break
 	case "stream":
-		go startStreamers(master_config)
+		startStreamers(master_config)
 		break
 	case "serve":
 		startServices(master_config)

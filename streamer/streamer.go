@@ -337,17 +337,16 @@ func NewOneTimeStreamer(streamer_config config.StreamerConfig) {
 	proxyconfig.SourceServer = streamer_config.SourceServer
 	proxyconfig.SourcePath = streamer_config.SourcePath
 
-	go func() {
-		new_scanner = new(downloader.SftpScanner)
-		new_scanner.DownloaderConfig = proxyconfig
-		new_scanner.Default_sleep_time = 60
-		if streamer_config.SleepInterval > 0 {
-			new_scanner.Default_sleep_time = streamer_config.SleepInterval
-		}
-		new_scanner.Start(c, done, true)
-		new_scanner.Stop()
-		new_scanner = nil
-	}()
+	new_scanner = new(downloader.SftpScanner)
+	new_scanner.DownloaderConfig = proxyconfig
+	new_scanner.Default_sleep_time = 60
+	if streamer_config.SleepInterval > 0 {
+		new_scanner.Default_sleep_time = streamer_config.SleepInterval
+	}
+	new_scanner.Start(c, done, true)
+	new_scanner.Stop()
+	new_scanner = nil
+	os.Exit(0)
 }
 
 // --------------------------------
