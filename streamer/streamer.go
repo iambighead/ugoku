@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	siginthandler "github.com/iambighead/ugoku/internal/sigintHandler"
 	"github.com/iambighead/ugoku/internal/sleepytime"
 	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
@@ -221,27 +220,26 @@ func (streamer *SftpStreamer) Start(c chan downloader.FileObj, done chan int) {
 	}
 }
 
+func setupSigHandler(new_scanner **downloader.SftpScanner, streamers []*SftpStreamer) {
+	siginthandler.Handle("streamer", func() {
+		term_signal = true
+		if new_scanner != nil {
+			(*new_scanner).Stop()
+		}
+		for _, this_streamer := range streamers {
+			if this_streamer != nil {
+				this_streamer.Stop()
+			}
+		}
+	})
+}
+
 func NewStreamer(streamer_config config.StreamerConfig) {
 	// tempfolder = tf
 	streamers := make([]*SftpStreamer, streamer_config.Worker)
 	var new_scanner *downloader.SftpScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
-		term_signal = true
-		fmt.Printf("streamer: signal received: %s\n", sig)
-
-		new_scanner.Stop()
-		for _, this_streamer := range streamers {
-			this_streamer.Stop()
-		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+	setupSigHandler(&new_scanner, streamers)
 
 	// make a channel
 	c := make(chan downloader.FileObj, streamer_config.Worker*2)
@@ -298,22 +296,7 @@ func NewOneTimeStreamer(streamer_config config.StreamerConfig) {
 	streamers := make([]*SftpStreamer, streamer_config.Worker)
 	var new_scanner *downloader.SftpScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
-		term_signal = true
-		fmt.Printf("streamer: signal received: %s\n", sig)
-
-		new_scanner.Stop()
-		for _, this_streamer := range streamers {
-			this_streamer.Stop()
-		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+	setupSigHandler(&new_scanner, streamers)
 
 	// make a channel
 	c := make(chan downloader.FileObj, streamer_config.Worker*2)

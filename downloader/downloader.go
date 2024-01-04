@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/internal/config"
+	siginthandler "github.com/iambighead/ugoku/internal/sigintHandler"
 	"github.com/iambighead/ugoku/internal/sleepytime"
 	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
@@ -230,35 +229,27 @@ func (dler *SftpDownloader) Start(c chan FileObj, done chan int) {
 	}
 }
 
+func setupSigHandler(new_scanner **SftpScanner, downloaders []*SftpDownloader) {
+	siginthandler.Handle("downloader", func() {
+		term_signal = true
+		if new_scanner != nil {
+			(*new_scanner).Stop()
+		}
+		for _, this_downloader := range downloaders {
+			if this_downloader != nil {
+				this_downloader.Stop()
+			}
+		}
+	})
+}
+
 func NewDownloader(downloader_config config.DownloaderConfig, tf string) {
 	tempfolder = tf
 
 	downloaders := make([]*SftpDownloader, downloader_config.Worker)
 	var new_scanner *SftpScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
-		term_signal = true
-		fmt.Printf("downloader: signal received: %s\n", sig)
-
-		global_stop_channel <- 1
-
-		if new_scanner != nil {
-			new_scanner.Stop()
-		}
-
-		for _, this_downloader := range downloaders {
-			if this_downloader != nil {
-				this_downloader.Stop()
-			}
-		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+	setupSigHandler(&new_scanner, downloaders)
 
 	// make channels
 	c := make(chan FileObj, downloader_config.Worker*2)
@@ -303,26 +294,7 @@ func NewOneTimeDownloader(downloader_config config.DownloaderConfig, tf string) 
 	downloaders := make([]*SftpDownloader, downloader_config.Worker)
 	var new_scanner *SftpScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
-		fmt.Printf("downloader: signal received: %s\n", sig)
-
-		if new_scanner != nil {
-			new_scanner.Stop()
-		}
-
-		for _, this_downloader := range downloaders {
-			if this_downloader != nil {
-				this_downloader.Stop()
-			}
-		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+	setupSigHandler(&new_scanner, downloaders)
 
 	// make channels
 	c := make(chan FileObj, downloader_config.Worker*2)

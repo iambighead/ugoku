@@ -5,14 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/internal/config"
+	siginthandler "github.com/iambighead/ugoku/internal/sigintHandler"
 	"github.com/iambighead/ugoku/internal/sleepytime"
 	"github.com/iambighead/ugoku/sftplibs"
 	"github.com/pkg/sftp"
@@ -246,26 +245,26 @@ func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 	}
 }
 
+func setupSigHandler(new_scanner **FolderScanner, uploaders []*SftpUploader) {
+	siginthandler.Handle("uploader", func() {
+		term_signal = true
+		if *new_scanner != nil {
+			(*new_scanner).Stop()
+		}
+		for _, this_uploader := range uploaders {
+			if this_uploader != nil {
+				this_uploader.Stop()
+			}
+		}
+	})
+}
+
 func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
 	// tempfolder = tf
 	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
 	var new_scanner *FolderScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
-
-	go func() {
-		sig := <-sigs
-		term_signal = true
-		fmt.Printf("uploader: signal received: %s\n", sig)
-		new_scanner.Stop()
-		for _, this_uploader := range uploaders {
-			this_uploader.Stop()
-		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+	setupSigHandler(&new_scanner, uploaders)
 
 	// make a channel
 	c := make(chan FileObj, uploaderer_config.Worker*2)
@@ -311,21 +310,7 @@ func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string) {
 	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
 	var new_scanner *FolderScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
-
-	go func() {
-		sig := <-sigs
-		term_signal = true
-		fmt.Printf("uploader: signal received: %s\n", sig)
-		new_scanner.Stop()
-		for _, this_uploader := range uploaders {
-			this_uploader.Stop()
-		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+	setupSigHandler(&new_scanner, uploaders)
 
 	// make a channel
 	c := make(chan FileObj, uploaderer_config.Worker*2)

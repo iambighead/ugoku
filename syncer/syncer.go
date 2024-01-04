@@ -3,13 +3,11 @@ package syncer
 import (
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/iambighead/goutils/logger"
 	"github.com/iambighead/ugoku/downloader"
 	"github.com/iambighead/ugoku/internal/config"
+	siginthandler "github.com/iambighead/ugoku/internal/sigintHandler"
 	"github.com/iambighead/ugoku/uploader"
 )
 
@@ -39,22 +37,17 @@ func startSyncServer(syncer_config config.SyncerConfig, mode string) {
 	syncers := make([]*SftpServerSyncer, syncer_config.Worker)
 	var new_scanner *downloader.SftpScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
+	siginthandler.Handle("server syncer", func() {
 		term_signal = true
-		fmt.Printf("server syncer: signal received: %s\n", sig)
-
-		new_scanner.Stop()
-		for _, this_syncer := range syncers {
-			this_syncer.Stop()
+		if new_scanner != nil {
+			new_scanner.Stop()
 		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+		for _, this_syncer := range syncers {
+			if this_syncer != nil {
+				this_syncer.Stop()
+			}
+		}
+	})
 
 	// make a channel
 	c := make(chan downloader.FileObj, syncer_config.Worker*2)
@@ -121,22 +114,17 @@ func startSyncLocal(syncer_config config.SyncerConfig, mode string) {
 	syncers := make([]*SftpLocalSyncer, syncer_config.Worker)
 	var new_scanner *uploader.FolderScanner
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
+	siginthandler.Handle("local syncer", func() {
 		term_signal = true
-		fmt.Printf("local syncer: signal received: %s\n", sig)
-
-		new_scanner.Stop()
-		for _, this_syncer := range syncers {
-			this_syncer.Stop()
+		if new_scanner != nil {
+			new_scanner.Stop()
 		}
-
-		time.Sleep(1 * time.Second)
-		os.Exit(0)
-	}()
+		for _, this_syncer := range syncers {
+			if this_syncer != nil {
+				this_syncer.Stop()
+			}
+		}
+	})
 
 	// make a channel
 	c := make(chan uploader.FileObj, syncer_config.Worker*2)
