@@ -86,6 +86,8 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		err := uper.sftp_client.MkdirAll(output_parent_folder)
 		if err != nil {
 			uper.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", uper.Target, output_parent_folder, err.Error()))
+			uper.uploader_to_exit = true
+			time.Sleep(1100 * time.Millisecond)
 			done <- 0
 			return
 		}
