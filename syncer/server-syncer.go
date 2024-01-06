@@ -27,6 +27,7 @@ type SftpServerSyncer struct {
 	logger      logger.Logger
 	sftp_client *sftp.Client
 	ssh_client  *ssh.Client
+	to_exit     bool
 }
 
 func (syncer *SftpServerSyncer) downloadable(file_to_download string, output_file string, stat fs.FileInfo) bool {
@@ -64,6 +65,7 @@ func (syncer *SftpServerSyncer) download(file_to_download string, output_file st
 		source, err := syncer.sftp_client.OpenFile(file_to_download, os.O_RDONLY)
 		if err != nil {
 			syncer.logger.Error(fmt.Sprintf("unable to open remote file: %s: %s: %s", syncer.Server, file_to_download, err.Error()))
+			syncer.to_exit = true
 			done <- 0
 			return
 		}
@@ -72,6 +74,7 @@ func (syncer *SftpServerSyncer) download(file_to_download string, output_file st
 		nBytes, tempfile_path, err := sftplibs.DownloadToTemp(ctxTimeout, tempfolder, source, syncer.prefix)
 		if err != nil && !cancelled {
 			syncer.logger.Error(fmt.Sprintf("error downloading file: %s: %s", file_to_download, err.Error()))
+			syncer.to_exit = true
 			done <- 0
 			return
 		}
@@ -137,6 +140,7 @@ func (syncer *SftpServerSyncer) connectAndGetClients() error {
 
 func (syncer *SftpServerSyncer) init() {
 	syncer.started = false
+	syncer.to_exit = false
 	syncer.logger = logger.NewLogger(fmt.Sprintf("server-syncer[%s:%d]", syncer.Name, syncer.id))
 
 	var sleepy sleepytime.Sleepytime
@@ -192,5 +196,8 @@ func (syncer *SftpServerSyncer) Start(c chan downloader.FileObj, done chan int) 
 			syncer.updateModTime(output_file, fo.Stat)
 		}
 		done <- 1
+		if syncer.to_exit {
+			return
+		}
 	}
 }
