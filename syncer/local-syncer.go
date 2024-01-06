@@ -26,6 +26,7 @@ type SftpLocalSyncer struct {
 	logger      logger.Logger
 	sftp_client *sftp.Client
 	ssh_client  *ssh.Client
+	to_exit     bool
 }
 
 func (syncer *SftpLocalSyncer) uploadable(file_to_download string, output_file string, stat fs.FileInfo) bool {
@@ -53,6 +54,7 @@ func (syncer *SftpLocalSyncer) upload(file_to_upload string, output_file string)
 	err := syncer.sftp_client.MkdirAll(output_parent_folder)
 	if err != nil {
 		syncer.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", syncer.Server, output_parent_folder, err.Error()))
+		syncer.to_exit = true
 		return
 	}
 	// syncer.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
@@ -68,6 +70,7 @@ func (syncer *SftpLocalSyncer) upload(file_to_upload string, output_file string)
 	target, openerr := syncer.sftp_client.Create(output_file)
 	if openerr != nil {
 		syncer.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", syncer.Server, output_file, err.Error()))
+		syncer.to_exit = true
 		return
 	}
 	defer target.Close()
@@ -75,6 +78,7 @@ func (syncer *SftpLocalSyncer) upload(file_to_upload string, output_file string)
 	nBytes, err := io.Copy(target, source)
 	if err != nil {
 		syncer.logger.Error(fmt.Sprintf("error uploading file: %s: %s", file_to_upload, err.Error()))
+		syncer.to_exit = true
 		return
 	}
 	end_time := time.Now().UnixMilli()
@@ -110,6 +114,7 @@ func (syncer *SftpLocalSyncer) connectAndGetClients() error {
 
 func (syncer *SftpLocalSyncer) init() {
 	syncer.started = false
+	syncer.to_exit = false
 	syncer.logger = logger.NewLogger(fmt.Sprintf("local-syncer[%s:%d]", syncer.Name, syncer.id))
 
 	var sleepy sleepytime.Sleepytime
@@ -167,5 +172,8 @@ func (syncer *SftpLocalSyncer) Start(c chan uploader.FileObj, done chan int) {
 			syncer.updateModTime(output_file, fo.Stat)
 		}
 		done <- 1
+		if syncer.to_exit {
+			return
+		}
 	}
 }
