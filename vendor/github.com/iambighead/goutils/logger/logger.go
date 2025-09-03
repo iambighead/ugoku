@@ -19,6 +19,7 @@ const LogLevelDebug = 2
 
 type Logger struct {
 	logger    *log.Logger
+	prefix    string
 	syslogger *srslog.Writer
 	Destroy   func()
 	loglevel  int
@@ -27,10 +28,10 @@ type Logger struct {
 func (l *Logger) Debugf(format string, v ...interface{}) {
 	if l.loglevel >= LogLevelDebug {
 		if l.syslogger != nil {
-			l.syslogger.Debug(fmt.Sprintf("debug: "+format, v...))
+			l.syslogger.Debug(fmt.Sprintf(l.prefix+"debug: "+format, v...))
 		}
 		if l.logger != nil {
-			l.logger.Printf("debug: "+format, v...)
+			l.logger.Printf(l.prefix+"debug: "+format, v...)
 		}
 	}
 }
@@ -38,25 +39,25 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 func (l *Logger) Infof(format string, v ...interface{}) {
 	if l.loglevel >= LogLevelInfo {
 		if l.syslogger != nil {
-			l.syslogger.Info(fmt.Sprintf("info: "+format, v...))
+			l.syslogger.Info(fmt.Sprintf(l.prefix+"info: "+format, v...))
 		}
 		if l.logger != nil {
-			l.logger.Printf("info: "+format, v...)
+			l.logger.Printf(l.prefix+"info: "+format, v...)
 		}
 	}
 }
 
 func (l *Logger) Errorf(format string, v ...interface{}) {
 	if l.syslogger != nil {
-		l.syslogger.Err(fmt.Sprintf("error: "+format, v...))
+		l.syslogger.Err(fmt.Sprintf(l.prefix+"error: "+format, v...))
 	}
 	if l.logger != nil {
-		l.logger.Printf("error: "+format, v...)
+		l.logger.Printf(l.prefix+"error: "+format, v...)
 	}
 }
 
 // func initLogger(mconfig *config.MasterConfig) *Logger {
-func InitLogger(
+func InitLoggerFactory(
 	loggerName string,
 	logLevel string,
 	logOutputFolder string,
@@ -68,9 +69,9 @@ func InitLogger(
 	enableSyslog bool,
 	syslogHost string,
 	syslogPort int,
-	syslogProtocol string) *Logger {
-	var myLogger Logger
+	syslogProtocol string) func(logname string) *Logger {
 
+	var myLogger Logger
 	loglevellc := strings.ToLower(logLevel)
 	switch loglevellc {
 	case "debug":
@@ -110,7 +111,14 @@ func InitLogger(
 		}
 	}
 
-	return &myLogger
+	return func(logPrefix string) *Logger {
+		thisLogger := myLogger
+		thisLogger.prefix = ""
+		if logPrefix != "" {
+			thisLogger.prefix = logPrefix + ": "
+		}
+		return &thisLogger
+	}
 }
 
 func createSysLogger(loggerName string, host string, port int, protocol string) (*srslog.Writer, func()) {

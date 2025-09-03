@@ -189,30 +189,30 @@ func startSyncLocal(syncer_config config.SyncerConfig, mode string, loggerInstan
 	}
 }
 
-func NewSyncer(syncer_config config.SyncerConfig, tf string, loggerInstance *logger.Logger) {
-	sync_manager_logger = loggerInstance
+func NewSyncer(syncer_config config.SyncerConfig, tf string, loggerFactory func(string) *logger.Logger) {
+	sync_manager_logger = loggerFactory("sync-manager")
 	tempfolder = tf
 
 	switch syncer_config.Mode {
 	case "server":
-		startSyncServer(syncer_config, "", loggerInstance)
+		startSyncServer(syncer_config, "", sync_manager_logger)
 	case "local":
-		startSyncLocal(syncer_config, "", loggerInstance)
+		startSyncLocal(syncer_config, "", sync_manager_logger)
 	case "both":
 	default:
 
 	}
 }
 
-func NewOneTimeSyncer(syncer_config config.SyncerConfig, tf string, loggerInstance *logger.Logger) {
-	sync_manager_logger = loggerInstance
+func NewOneTimeSyncer(syncer_config config.SyncerConfig, tf string, loggerFactory func(string) *logger.Logger) {
+	sync_manager_logger = loggerFactory("sync-manager")
 	tempfolder = tf
 
 	switch syncer_config.Mode {
 	case "server":
-		startSyncServer(syncer_config, "onetime", loggerInstance)
+		startSyncServer(syncer_config, "onetime", sync_manager_logger)
 	case "local":
-		startSyncLocal(syncer_config, "onetime", loggerInstance)
+		startSyncLocal(syncer_config, "onetime", sync_manager_logger)
 	case "both":
 	default:
 

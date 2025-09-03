@@ -244,8 +244,8 @@ func setupSigHandler(new_scanner **SftpScanner, downloaders []*SftpDownloader) {
 	})
 }
 
-func NewDownloader(downloader_config config.DownloaderConfig, tf string, loggerInstance *logger.Logger) {
-	download_manager_logger = loggerInstance
+func NewDownloader(downloader_config config.DownloaderConfig, tf string, loggerFactory func(string) *logger.Logger) {
+	download_manager_logger = loggerFactory("download-manager")
 	tempfolder = tf
 
 	downloaders := make([]*SftpDownloader, downloader_config.Worker)
@@ -279,7 +279,7 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string, loggerI
 		for {
 			new_scanner = new(SftpScanner)
 			new_scanner.DownloaderConfig = downloader_config
-			new_scanner.Start(c, done, false, loggerInstance)
+			new_scanner.Start(c, done, false, download_manager_logger)
 			new_scanner.Stop()
 			new_scanner = nil
 			if term_signal {
@@ -290,10 +290,10 @@ func NewDownloader(downloader_config config.DownloaderConfig, tf string, loggerI
 	}()
 }
 
-func NewOneTimeDownloader(downloader_config config.DownloaderConfig, tf string, loggerInstance *logger.Logger) {
+func NewOneTimeDownloader(downloader_config config.DownloaderConfig, tf string, loggerFactory func(string) *logger.Logger) {
 	tempfolder = tf
 
-	download_manager_logger = loggerInstance
+	download_manager_logger = loggerFactory("download-manager")
 	downloaders := make([]*SftpDownloader, downloader_config.Worker)
 	var new_scanner *SftpScanner
 

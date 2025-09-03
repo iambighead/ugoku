@@ -2,8 +2,8 @@ github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91 h1:vX+gnvBc56EbWYrm
 github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91/go.mod h1:cDLGBht23g0XQdLjzn6xOGXDkLK182YfINAaZEQLCHQ=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/iambighead/goutils v0.0.4 h1:ZgufUtyGuPolcl3zh0LmUc0nyfB1UfY1HCK1iqYrwyg=
-github.com/iambighead/goutils v0.0.4/go.mod h1:Ev6fQXjeFLFkJUAO2ZJgPipiID3TMZ4jHwXaCjkgnNA=
+github.com/iambighead/goutils v0.0.7 h1:w0XItpHL+nYp5Gb5sdXydFY//GMsibe1cTPrrZdbCvE=
+github.com/iambighead/goutils v0.0.7/go.mod h1:Ev6fQXjeFLFkJUAO2ZJgPipiID3TMZ4jHwXaCjkgnNA=
 github.com/kr/fs v0.1.0 h1:Jskdu9ieNAYnjxsi0LbQp1ulIKZV1LAFgK1tWhpZgl8=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/pkg/sftp v1.13.5 h1:a3RLUqkyjYRtBTZJZ1VRrKbN3zhuPLlUc3sphVz81go=

@@ -20,6 +20,7 @@ const VERSION = version.UGOKU_VERSION
 // --------------------------------
 
 var main_logger *lg.Logger
+var loggerFactory func(string) *lg.Logger
 var master_config config.MasterConfig
 
 func startDownloaders(master_config config.MasterConfig) {
@@ -27,7 +28,7 @@ func startDownloaders(master_config config.MasterConfig) {
 	downloader_started := 0
 	for _, downloader_config := range master_config.Downloaders {
 		if downloader_config.Enabled {
-			go downloader.NewOneTimeDownloader(downloader_config, master_config.General.TempFolder, main_logger)
+			go downloader.NewOneTimeDownloader(downloader_config, master_config.General.TempFolder, loggerFactory)
 			downloader_started++
 		}
 	}
@@ -45,7 +46,7 @@ func startUploaders(master_config config.MasterConfig) {
 	uploader_started := 0
 	for _, uploader_config := range master_config.Uploaders {
 		if uploader_config.Enabled {
-			uploader.NewOneTimeUploader(uploader_config, master_config.General.TempFolder, main_logger)
+			uploader.NewOneTimeUploader(uploader_config, master_config.General.TempFolder, loggerFactory)
 			uploader_started++
 		}
 	}
@@ -63,7 +64,7 @@ func startSyncers(master_config config.MasterConfig) {
 	syncer_started := 0
 	for _, syncer_config := range master_config.Syncers {
 		if syncer_config.Enabled {
-			syncer.NewOneTimeSyncer(syncer_config, master_config.General.TempFolder, main_logger)
+			syncer.NewOneTimeSyncer(syncer_config, master_config.General.TempFolder, loggerFactory)
 			syncer_started++
 		}
 	}
@@ -81,7 +82,7 @@ func startStreamers(master_config config.MasterConfig) {
 	streamer_started := 0
 	for _, streamer_config := range master_config.Streamers {
 		if streamer_config.Enabled {
-			streamer.NewOneTimeStreamer(streamer_config, main_logger)
+			streamer.NewOneTimeStreamer(streamer_config, loggerFactory)
 			streamer_started++
 		}
 	}
@@ -101,7 +102,7 @@ func startDownloadersService(master_config config.MasterConfig) {
 	downloader_started := 0
 	for _, downloader_config := range master_config.Downloaders {
 		if downloader_config.Enabled {
-			downloader.NewDownloader(downloader_config, master_config.General.TempFolder, main_logger)
+			downloader.NewDownloader(downloader_config, master_config.General.TempFolder, loggerFactory)
 			downloader_started++
 		}
 	}
@@ -114,7 +115,7 @@ func startUploadersService(master_config config.MasterConfig) {
 	uploader_started := 0
 	for _, uploader_config := range master_config.Uploaders {
 		if uploader_config.Enabled {
-			uploader.NewUploader(uploader_config, master_config.General.TempFolder, main_logger)
+			uploader.NewUploader(uploader_config, master_config.General.TempFolder, loggerFactory)
 			uploader_started++
 		}
 	}
@@ -127,7 +128,7 @@ func startSyncersService(master_config config.MasterConfig) {
 	syncer_started := 0
 	for _, syncer_config := range master_config.Syncers {
 		if syncer_config.Enabled {
-			syncer.NewSyncer(syncer_config, master_config.General.TempFolder, main_logger)
+			syncer.NewSyncer(syncer_config, master_config.General.TempFolder, loggerFactory)
 			syncer_started++
 		}
 	}
@@ -140,7 +141,7 @@ func startStreamersService(master_config config.MasterConfig) {
 	streamer_started := 0
 	for _, streamer_config := range master_config.Streamers {
 		if streamer_config.Enabled {
-			streamer.NewStreamer(streamer_config, main_logger)
+			streamer.NewStreamer(streamer_config, loggerFactory)
 			streamer_started++
 		}
 	}
@@ -160,7 +161,7 @@ func startServices(master_config config.MasterConfig) {
 
 func init() {
 
-	loggerName := "main"
+	loggerName := "ugoku"
 	loggerLogLevel := "info"
 	loggerLogOutputFolder := "/tmp"
 	loggerRotationBySize := false
@@ -173,7 +174,7 @@ func init() {
 	loggervSyslogPort := 514
 	loggerSyslogProtocol := "udp"
 
-	main_logger = lg.InitLogger(
+	loggerFactory = lg.InitLoggerFactory(
 		loggerName,
 		loggerLogLevel,
 		loggerLogOutputFolder,
@@ -187,6 +188,8 @@ func init() {
 		loggervSyslogPort,
 		loggerSyslogProtocol,
 	)
+
+	main_logger = loggerFactory("main")
 
 	// logger.Init("ugoku.log", "UGOKU_LOG_LEVEL")
 	// main_logger = logger.NewLogger("main")

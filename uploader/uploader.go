@@ -262,9 +262,9 @@ func setupSigHandler(new_scanner **FolderScanner, uploaders []*SftpUploader) {
 	})
 }
 
-func NewUploader(uploaderer_config config.UploaderConfig, tf string, loggerInstance *logger.Logger) {
+func NewUploader(uploaderer_config config.UploaderConfig, tf string, loggerFactory func(string) *logger.Logger) {
 
-	upload_manager_logger = loggerInstance
+	upload_manager_logger = loggerFactory("upload-manager")
 
 	// tempfolder = tf
 	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
@@ -298,7 +298,7 @@ func NewUploader(uploaderer_config config.UploaderConfig, tf string, loggerInsta
 		for {
 			new_scanner = new(FolderScanner)
 			new_scanner.UploaderConfig = uploaderer_config
-			new_scanner.Start(c, done, false, loggerInstance)
+			new_scanner.Start(c, done, false, upload_manager_logger)
 			new_scanner.Stop()
 			new_scanner = nil
 			if term_signal {
@@ -310,9 +310,9 @@ func NewUploader(uploaderer_config config.UploaderConfig, tf string, loggerInsta
 
 }
 
-func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string, loggerInstance *logger.Logger) {
+func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string, loggerFactory func(string) *logger.Logger) {
 
-	upload_manager_logger = loggerInstance
+	upload_manager_logger = loggerFactory("upload-manager")
 
 	// tempfolder = tf
 	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
@@ -338,7 +338,7 @@ func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string, logg
 
 	new_scanner = new(FolderScanner)
 	new_scanner.UploaderConfig = uploaderer_config
-	new_scanner.Start(c, done, true, loggerInstance)
+	new_scanner.Start(c, done, true, upload_manager_logger)
 	new_scanner.Stop()
 	new_scanner = nil
 	os.Exit(0)

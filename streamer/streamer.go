@@ -235,8 +235,8 @@ func setupSigHandler(new_scanner **downloader.SftpScanner, streamers []*SftpStre
 	})
 }
 
-func NewStreamer(streamer_config config.StreamerConfig, loggerInstance *logger.Logger) {
-	stream_manager_logger = loggerInstance
+func NewStreamer(streamer_config config.StreamerConfig, loggerFactory func(string) *logger.Logger) {
+	stream_manager_logger = loggerFactory("stream-manager")
 	// tempfolder = tf
 	streamers := make([]*SftpStreamer, streamer_config.Worker)
 	var new_scanner *downloader.SftpScanner
@@ -281,7 +281,7 @@ func NewStreamer(streamer_config config.StreamerConfig, loggerInstance *logger.L
 			if streamer_config.SleepInterval > 0 {
 				new_scanner.Default_sleep_time = streamer_config.SleepInterval
 			}
-			new_scanner.Start(c, done, false, loggerInstance)
+			new_scanner.Start(c, done, false, stream_manager_logger)
 			new_scanner.Stop()
 			new_scanner = nil
 			if term_signal {
@@ -293,8 +293,8 @@ func NewStreamer(streamer_config config.StreamerConfig, loggerInstance *logger.L
 
 }
 
-func NewOneTimeStreamer(streamer_config config.StreamerConfig, loggerInstance *logger.Logger) {
-	stream_manager_logger = loggerInstance
+func NewOneTimeStreamer(streamer_config config.StreamerConfig, loggerFactory func(string) *logger.Logger) {
+	stream_manager_logger = loggerFactory("stream-manager")
 	// tempfolder = tf
 	streamers := make([]*SftpStreamer, streamer_config.Worker)
 	var new_scanner *downloader.SftpScanner
@@ -329,7 +329,7 @@ func NewOneTimeStreamer(streamer_config config.StreamerConfig, loggerInstance *l
 	if streamer_config.SleepInterval > 0 {
 		new_scanner.Default_sleep_time = streamer_config.SleepInterval
 	}
-	new_scanner.Start(c, done, true, loggerInstance)
+	new_scanner.Start(c, done, true, stream_manager_logger)
 	new_scanner.Stop()
 	new_scanner = nil
 	os.Exit(0)
