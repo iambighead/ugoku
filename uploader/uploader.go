@@ -20,12 +20,12 @@ import (
 
 // --------------------------------
 var term_signal bool
-var upload_manager_logger logger.Logger
+var upload_manager_logger *logger.Logger
 
 // var tempfolder string
 
 func init() {
-	upload_manager_logger = logger.NewLogger("upload-manager")
+	// upload_manager_logger = logger.NewLogger("upload-manager")
 }
 
 // --------------------------------
@@ -42,7 +42,7 @@ type SftpUploader struct {
 	id               int
 	prefix           string
 	started          bool
-	logger           logger.Logger
+	logger           *logger.Logger
 	sftp_client      *sftp.Client
 	ssh_client       *ssh.Client
 	uploader_to_exit bool
@@ -57,7 +57,7 @@ func (uper *SftpUploader) removeSrc(file_to_upload string) {
 		time.Sleep(time.Duration(i*100) * time.Millisecond)
 		err := os.Remove(file_to_upload)
 		if err != nil {
-			uper.logger.Error(fmt.Sprintf("failed to remove local file (try %d): %s: %s", i, file_to_upload, err.Error()))
+			uper.logger.Errorf(fmt.Sprintf("failed to remove local file (try %d): %s: %s", i, file_to_upload, err.Error()))
 		} else {
 			// no error, check file really removed
 			_, staterr := os.Stat(file_to_upload)
@@ -80,23 +80,23 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		upload_source_relative_path := strings.Replace(file_to_upload, uper.SourcePath, "", 1)
 		output_file := filepath.Join(uper.TargetPath, upload_source_relative_path)
 		output_file = strings.ReplaceAll(output_file, "\\", "/")
-		uper.logger.Debug(fmt.Sprintf("uploading file %s to %s:%s, with %d seconds timeout", file_to_upload, uper.Target, output_file, timeout_to_use))
+		uper.logger.Debugf(fmt.Sprintf("uploading file %s to %s:%s, with %d seconds timeout", file_to_upload, uper.Target, output_file, timeout_to_use))
 
 		output_parent_folder := strings.ReplaceAll(filepath.Dir(output_file), "\\", "/")
 		err := uper.sftp_client.MkdirAll(output_parent_folder)
 		if err != nil {
-			uper.logger.Error(fmt.Sprintf("unable to create remote folder: %s: %s: %s", uper.Target, output_parent_folder, err.Error()))
+			uper.logger.Errorf(fmt.Sprintf("unable to create remote folder: %s: %s: %s", uper.Target, output_parent_folder, err.Error()))
 			uper.uploader_to_exit = true
 			time.Sleep(1100 * time.Millisecond)
 			done <- 0
 			return
 		}
-		// uper.logger.Debug(fmt.Sprintf("created output folder %s", output_parent_folder))
+		// uper.logger.Debugf(fmt.Sprintf("created output folder %s", output_parent_folder))
 
 		start_time := time.Now().UnixMilli()
 		source, err := os.OpenFile(file_to_upload, os.O_RDONLY, 0644)
 		if err != nil {
-			uper.logger.Error(fmt.Sprintf("unable to open local file: %s: %s", file_to_upload, err.Error()))
+			uper.logger.Errorf(fmt.Sprintf("unable to open local file: %s: %v", file_to_upload, err))
 			uper.uploader_to_exit = true
 			time.Sleep(1100 * time.Millisecond)
 			done <- 0
@@ -106,7 +106,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 
 		target, openerr := uper.sftp_client.Create(output_file)
 		if openerr != nil {
-			uper.logger.Error(fmt.Sprintf("error opening remote file: %s:%s: %s", uper.Target, output_file, err.Error()))
+			uper.logger.Errorf(fmt.Sprintf("error opening remote file: %s:%s: %v", uper.Target, output_file, err))
 			uper.uploader_to_exit = true
 			time.Sleep(1100 * time.Millisecond)
 			done <- 0
@@ -117,7 +117,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		// nBytes, err := io.Copy(target, source)
 		nBytes, err := sftplibs.CopyWithCancel(ctxTimeout, target, source)
 		if err != nil && !cancelled {
-			uper.logger.Error(fmt.Sprintf("error uploading file: %s: %s", file_to_upload, err.Error()))
+			uper.logger.Errorf(fmt.Sprintf("error uploading file: %s: %v", file_to_upload, err))
 			uper.uploader_to_exit = true
 			time.Sleep(1100 * time.Millisecond)
 			done <- 0
@@ -125,7 +125,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		}
 
 		if cancelled {
-			uper.logger.Info("upload cancelled")
+			uper.logger.Infof("upload cancelled")
 			done <- 0
 			return
 		}
@@ -136,7 +136,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		if time_taken < 1 {
 			time_taken = 1
 		}
-		uper.logger.Info(fmt.Sprintf("uploaded %s with %d bytes in %d ms, %.1f mbps", file_to_upload, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
+		uper.logger.Infof(fmt.Sprintf("uploaded %s with %d bytes in %d ms, %.1f mbps", file_to_upload, nBytes, time_taken, float64(nBytes/1000*8/time_taken)))
 		done <- 1
 	}()
 
@@ -149,7 +149,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 		}
 		return errors.New("upload failed")
 	case <-global_stop_channel:
-		uper.logger.Info("global stop channel: setting uploader exit to true")
+		uper.logger.Infof("global stop channel: setting uploader exit to true")
 		uper.uploader_to_exit = true
 		return fmt.Errorf("upload cancelled due to stop signal: %s", file_to_upload)
 	}
@@ -159,7 +159,7 @@ func (uper *SftpUploader) upload(file_to_upload string, size int64) error {
 // --------------------------------
 
 func (uper *SftpUploader) connectAndGetClients() error {
-	uper.logger.Debug(fmt.Sprintf("connecting to server %s with user %s", uper.TargetServer.Ip, uper.TargetServer.User))
+	uper.logger.Debugf(fmt.Sprintf("connecting to server %s with user %s", uper.TargetServer.Ip, uper.TargetServer.User))
 	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
 		uper.TargetServer.Ip,
 		uper.TargetServer.Port,
@@ -170,7 +170,7 @@ func (uper *SftpUploader) connectAndGetClients() error {
 	if err != nil {
 		return err
 	}
-	uper.logger.Info(fmt.Sprintf("connected to server %s with user %s", uper.TargetServer.Ip, uper.TargetServer.User))
+	uper.logger.Infof(fmt.Sprintf("connected to server %s with user %s", uper.TargetServer.Ip, uper.TargetServer.User))
 	uper.ssh_client = ssh_client
 	uper.sftp_client = sftp_client
 	return nil
@@ -181,7 +181,8 @@ func (uper *SftpUploader) connectAndGetClients() error {
 func (uper *SftpUploader) init() {
 	uper.started = false
 	uper.uploader_to_exit = false
-	uper.logger = logger.NewLogger(fmt.Sprintf("uploader[%s:%d]", uper.Name, uper.id))
+	// uper.logger = logger.NewLogger(fmt.Sprintf("uploader[%s:%d]", uper.Name, uper.id))
+	uper.logger = upload_manager_logger
 
 	var sleepy sleepytime.Sleepytime
 	sleepy.Reset(2, 600)
@@ -190,7 +191,7 @@ func (uper *SftpUploader) init() {
 		if err == nil {
 			break
 		}
-		uper.logger.Error(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
+		uper.logger.Errorf(fmt.Sprintf("error connecting to server, will try again: %s", err.Error()))
 		time.Sleep(10 * time.Second)
 		time.Sleep(time.Duration(sleepy.GetNextSleep()) * time.Second)
 	}
@@ -207,7 +208,7 @@ func (uper *SftpUploader) Stop() {
 	if uper.ssh_client != nil {
 		uper.ssh_client.Close()
 	}
-	uper.logger.Info("stopped")
+	uper.logger.Infof("stopped")
 }
 
 // --------------------------------
@@ -224,10 +225,10 @@ func (uper *SftpUploader) Start(c chan FileObj, done chan int) {
 			}
 			fo := <-c
 			file_to_upload = fo.Path
-			uper.logger.Debug(fmt.Sprintf("received file from channel: %s", file_to_upload))
+			uper.logger.Debugf(fmt.Sprintf("received file from channel: %s", file_to_upload))
 			upload_err := uper.upload(file_to_upload, fo.Stat.Size())
 			if upload_err == nil {
-				// 	uper.logger.Error(fmt.Sprintf("upload error: %s", upload_err.Error()))
+				// 	uper.logger.Errorf(fmt.Sprintf("upload error: %s", upload_err.Error()))
 				// } else {
 				uper.removeSrc(file_to_upload)
 			}
@@ -261,7 +262,10 @@ func setupSigHandler(new_scanner **FolderScanner, uploaders []*SftpUploader) {
 	})
 }
 
-func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
+func NewUploader(uploaderer_config config.UploaderConfig, tf string, loggerInstance *logger.Logger) {
+
+	upload_manager_logger = loggerInstance
+
 	// tempfolder = tf
 	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
 	var new_scanner *FolderScanner
@@ -285,7 +289,7 @@ func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
 				if term_signal {
 					return
 				}
-				upload_manager_logger.Info(fmt.Sprintf("uploader [%d] exited, will recreate", myid))
+				upload_manager_logger.Infof(fmt.Sprintf("uploader [%d] exited, will recreate", myid))
 			}
 		}(i)
 	}
@@ -294,19 +298,21 @@ func NewUploader(uploaderer_config config.UploaderConfig, tf string) {
 		for {
 			new_scanner = new(FolderScanner)
 			new_scanner.UploaderConfig = uploaderer_config
-			new_scanner.Start(c, done, false)
+			new_scanner.Start(c, done, false, loggerInstance)
 			new_scanner.Stop()
 			new_scanner = nil
 			if term_signal {
 				return
 			}
-			upload_manager_logger.Info("scanner exited, will recreate")
+			upload_manager_logger.Infof("scanner exited, will recreate")
 		}
 	}()
 
 }
 
-func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string) {
+func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string, loggerInstance *logger.Logger) {
+
+	upload_manager_logger = loggerInstance
 
 	// tempfolder = tf
 	uploaders := make([]*SftpUploader, uploaderer_config.Worker)
@@ -332,7 +338,7 @@ func NewOneTimeUploader(uploaderer_config config.UploaderConfig, tf string) {
 
 	new_scanner = new(FolderScanner)
 	new_scanner.UploaderConfig = uploaderer_config
-	new_scanner.Start(c, done, true)
+	new_scanner.Start(c, done, true, loggerInstance)
 	new_scanner.Stop()
 	new_scanner = nil
 	os.Exit(0)

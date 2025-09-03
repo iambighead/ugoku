@@ -1,25 +1,17 @@
-# github.com/iambighead/goutils v0.0.3
+# github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
+## explicit
+github.com/RackSec/srslog
+# github.com/iambighead/goutils v0.0.4
 ## explicit; go 1.19
 github.com/iambighead/goutils/logger
 github.com/iambighead/goutils/utils
 # github.com/kr/fs v0.1.0
 ## explicit
 github.com/kr/fs
-# github.com/mattn/go-colorable v0.1.13
-## explicit; go 1.15
-github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.16
-## explicit; go 1.15
-github.com/mattn/go-isatty
 # github.com/pkg/sftp v1.13.5
 ## explicit; go 1.15
 github.com/pkg/sftp
 github.com/pkg/sftp/internal/encoding/ssh/filexfer
-# github.com/rs/zerolog v1.28.0
-## explicit; go 1.15
-github.com/rs/zerolog
-github.com/rs/zerolog/internal/cbor
-github.com/rs/zerolog/internal/json
 # golang.org/x/crypto v0.3.0
 ## explicit; go 1.17
 golang.org/x/crypto/blowfish
@@ -34,10 +26,6 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 # golang.org/x/sys v0.2.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
-golang.org/x/sys/unix
-# gopkg.in/natefinch/lumberjack.v2 v2.0.0
-## explicit
-gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3

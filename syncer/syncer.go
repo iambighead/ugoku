@@ -13,12 +13,12 @@ import (
 
 // --------------------------------
 var term_signal bool
-var sync_manager_logger logger.Logger
+var sync_manager_logger *logger.Logger
 
 var tempfolder string
 
 func init() {
-	sync_manager_logger = logger.NewLogger("sync-manager")
+	// sync_manager_logger = logger.NewLogger("sync-manager")
 }
 
 // --------------------------------
@@ -32,7 +32,7 @@ func init() {
 
 // -------------------------
 
-func startSyncServer(syncer_config config.SyncerConfig, mode string) {
+func startSyncServer(syncer_config config.SyncerConfig, mode string, loggerInstance *logger.Logger) {
 
 	syncers := make([]*SftpServerSyncer, syncer_config.Worker)
 	var new_scanner *downloader.SftpScanner
@@ -60,13 +60,13 @@ func startSyncServer(syncer_config config.SyncerConfig, mode string) {
 				new_server_syncer.SyncerConfig = syncer_config
 				new_server_syncer.id = myid
 				syncers[myid] = &new_server_syncer
-				new_server_syncer.Start(c, done)
+				new_server_syncer.Start(c, done, loggerInstance)
 				new_server_syncer.Stop()
 				syncers[myid] = nil
 				if mode == "onetime" || term_signal {
 					return
 				}
-				sync_manager_logger.Info(fmt.Sprintf("server syncer [%d] exited, will recreate", myid))
+				sync_manager_logger.Infof(fmt.Sprintf("server syncer [%d] exited, will recreate", myid))
 			}
 		}(i)
 	}
@@ -84,7 +84,7 @@ func startSyncServer(syncer_config config.SyncerConfig, mode string) {
 			new_scanner.Default_sleep_time = syncer_config.SleepInterval
 		}
 		new_scanner.DownloaderConfig = proxyconfig
-		new_scanner.Start(c, done, true)
+		new_scanner.Start(c, done, true, loggerInstance)
 		new_scanner.Stop()
 		new_scanner = nil
 		os.Exit(0)
@@ -97,19 +97,19 @@ func startSyncServer(syncer_config config.SyncerConfig, mode string) {
 					new_scanner.Default_sleep_time = syncer_config.SleepInterval
 				}
 				new_scanner.DownloaderConfig = proxyconfig
-				new_scanner.Start(c, done, false)
+				new_scanner.Start(c, done, false, loggerInstance)
 				new_scanner.Stop()
 				new_scanner = nil
 				if term_signal {
 					return
 				}
-				sync_manager_logger.Info("server syncer scanner exited, will recreate")
+				sync_manager_logger.Infof("server syncer scanner exited, will recreate")
 			}
 		}()
 	}
 }
 
-func startSyncLocal(syncer_config config.SyncerConfig, mode string) {
+func startSyncLocal(syncer_config config.SyncerConfig, mode string, loggerInstance *logger.Logger) {
 
 	syncers := make([]*SftpLocalSyncer, syncer_config.Worker)
 	var new_scanner *uploader.FolderScanner
@@ -138,13 +138,13 @@ func startSyncLocal(syncer_config config.SyncerConfig, mode string) {
 				new_server_syncer.SyncerConfig = syncer_config
 				new_server_syncer.id = myid
 				syncers[myid] = &new_server_syncer
-				new_server_syncer.Start(c, done)
+				new_server_syncer.Start(c, done, loggerInstance)
 				new_server_syncer.Stop()
 				syncers[myid] = nil
 				if mode == "onetime" || term_signal {
 					return
 				}
-				sync_manager_logger.Info(fmt.Sprintf("local syncer [%d] exited, will recreate", myid))
+				sync_manager_logger.Infof(fmt.Sprintf("local syncer [%d] exited, will recreate", myid))
 			}
 		}(i)
 
@@ -164,7 +164,7 @@ func startSyncLocal(syncer_config config.SyncerConfig, mode string) {
 			new_scanner.Default_sleep_time = syncer_config.SleepInterval
 		}
 		new_scanner.UploaderConfig = proxyconfig
-		new_scanner.StartWithWatcher(c, done, true)
+		new_scanner.StartWithWatcher(c, done, true, loggerInstance)
 		new_scanner.Stop()
 		new_scanner = nil
 		os.Exit(0)
@@ -177,40 +177,42 @@ func startSyncLocal(syncer_config config.SyncerConfig, mode string) {
 					new_scanner.Default_sleep_time = syncer_config.SleepInterval
 				}
 				new_scanner.UploaderConfig = proxyconfig
-				new_scanner.StartWithWatcher(c, done, false)
+				new_scanner.StartWithWatcher(c, done, false, loggerInstance)
 				new_scanner.Stop()
 				new_scanner = nil
 				if term_signal {
 					return
 				}
-				sync_manager_logger.Info("local syncer scanner exited, will recreate")
+				sync_manager_logger.Infof("local syncer scanner exited, will recreate")
 			}
 		}()
 	}
 }
 
-func NewSyncer(syncer_config config.SyncerConfig, tf string) {
+func NewSyncer(syncer_config config.SyncerConfig, tf string, loggerInstance *logger.Logger) {
+	sync_manager_logger = loggerInstance
 	tempfolder = tf
 
 	switch syncer_config.Mode {
 	case "server":
-		startSyncServer(syncer_config, "")
+		startSyncServer(syncer_config, "", loggerInstance)
 	case "local":
-		startSyncLocal(syncer_config, "")
+		startSyncLocal(syncer_config, "", loggerInstance)
 	case "both":
 	default:
 
 	}
 }
 
-func NewOneTimeSyncer(syncer_config config.SyncerConfig, tf string) {
+func NewOneTimeSyncer(syncer_config config.SyncerConfig, tf string, loggerInstance *logger.Logger) {
+	sync_manager_logger = loggerInstance
 	tempfolder = tf
 
 	switch syncer_config.Mode {
 	case "server":
-		startSyncServer(syncer_config, "onetime")
+		startSyncServer(syncer_config, "onetime", loggerInstance)
 	case "local":
-		startSyncLocal(syncer_config, "onetime")
+		startSyncLocal(syncer_config, "onetime", loggerInstance)
 	case "both":
 	default:
 

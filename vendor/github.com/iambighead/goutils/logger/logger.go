@@ -2,79 +2,266 @@ package logger
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
-	"github.com/rs/zerolog"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"github.com/RackSec/srslog"
 )
 
-var logger_file zerolog.Logger
-var logger_console zerolog.Logger
-var logger_file_inited bool
+const LogLevelError = 0
+const LogLevelInfo = 1
+const LogLevelDebug = 2
 
 type Logger struct {
-	name string
+	logger    *log.Logger
+	syslogger *srslog.Writer
+	Destroy   func()
+	loglevel  int
 }
 
-func Init(log_filename string, log_level_env_name string) {
-
-	logger_file_inited = false
-
-	loglevel := zerolog.InfoLevel
-	env_LOG_LEVEL := strings.ToLower(os.Getenv(log_level_env_name))
-	switch env_LOG_LEVEL {
-	case "info":
-		loglevel = zerolog.InfoLevel
-	case "debug":
-		loglevel = zerolog.DebugLevel
-	case "error":
-		loglevel = zerolog.ErrorLevel
-	}
-
-	// create logger
-	var fileLogger *lumberjack.Logger
-	if log_filename != "" {
-		fileLogger = &lumberjack.Logger{
-			Filename:   log_filename,
-			MaxSize:    10,    // megabytes
-			MaxBackups: 10,    // files
-			MaxAge:     7,     // days
-			Compress:   false, // disabled by default
+func (l *Logger) Debugf(format string, v ...interface{}) {
+	if l.loglevel >= LogLevelDebug {
+		if l.syslogger != nil {
+			l.syslogger.Debug(fmt.Sprintf("debug: "+format, v...))
 		}
-		logger_file = zerolog.New(fileLogger).Level(loglevel).With().Timestamp().Logger()
-		logger_file_inited = true
+		if l.logger != nil {
+			l.logger.Printf("debug: "+format, v...)
+		}
 	}
-
-	logger_console = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).Level(loglevel).With().Timestamp().Logger()
 }
 
-func (mylogger *Logger) Info(msg string) {
-	msg = fmt.Sprintf("%s: %s", mylogger.name, msg)
-	if logger_file_inited {
-		logger_file.Info().Msg(msg)
+func (l *Logger) Infof(format string, v ...interface{}) {
+	if l.loglevel >= LogLevelInfo {
+		if l.syslogger != nil {
+			l.syslogger.Info(fmt.Sprintf("info: "+format, v...))
+		}
+		if l.logger != nil {
+			l.logger.Printf("info: "+format, v...)
+		}
 	}
-	logger_console.Info().Msg(msg)
 }
 
-func (mylogger *Logger) Debug(msg string) {
-	msg = fmt.Sprintf("%s: %s", mylogger.name, msg)
-	if logger_file_inited {
-		logger_file.Debug().Msg(msg)
+func (l *Logger) Errorf(format string, v ...interface{}) {
+	if l.syslogger != nil {
+		l.syslogger.Err(fmt.Sprintf("error: "+format, v...))
 	}
-	logger_console.Debug().Msg(msg)
+	if l.logger != nil {
+		l.logger.Printf("error: "+format, v...)
+	}
 }
 
-func (mylogger *Logger) Error(msg string) {
-	msg = fmt.Sprintf("%s: %s", mylogger.name, msg)
-	if logger_file_inited {
-		logger_file.Error().Msg(msg)
+// func initLogger(mconfig *config.MasterConfig) *Logger {
+func InitLogger(
+	loggerName string,
+	logLevel string,
+	logOutputFolder string,
+	logRotationBySize bool,
+	logMaxFileSize int,
+	logMaxFiles int,
+	logRotationIntervalHour int,
+	enableConsoleLog bool,
+	enableSyslog bool,
+	syslogHost string,
+	syslogPort int,
+	syslogProtocol string) *Logger {
+	var myLogger Logger
+
+	loglevellc := strings.ToLower(logLevel)
+	switch loglevellc {
+	case "debug":
+		myLogger.loglevel = LogLevelDebug
+	case "info":
+		myLogger.loglevel = LogLevelInfo
+	case "error":
+		myLogger.loglevel = LogLevelError
+	default:
+		myLogger.loglevel = LogLevelInfo
 	}
-	logger_console.Error().Msg(msg)
+
+	// Initialize the logger
+	var locallogger_destroy func()
+	var syslogger_destroy func()
+
+	// Rotate every hour if logRotationBySize is false
+	logRotationInterval := time.Duration(logRotationIntervalHour) * time.Hour
+	myLogger.logger, locallogger_destroy = createCustomFileLogger(
+		loggerName, logOutputFolder, logRotationBySize, logMaxFileSize,
+		logMaxFiles, logRotationInterval, enableConsoleLog)
+
+	if enableSyslog {
+		myLogger.syslogger, syslogger_destroy = createSysLogger(
+			loggerName,
+			syslogHost,
+			syslogPort,
+			syslogProtocol)
+	}
+
+	myLogger.Destroy = func() {
+		if locallogger_destroy != nil {
+			locallogger_destroy()
+		}
+		if syslogger_destroy != nil {
+			syslogger_destroy()
+		}
+	}
+
+	return &myLogger
 }
 
-func NewLogger(name string) Logger {
-	var new_logger Logger
-	new_logger.name = name
-	return new_logger
+func createSysLogger(loggerName string, host string, port int, protocol string) (*srslog.Writer, func()) {
+	// Initialize syslog writer
+	if protocol != "udp" && protocol != "tcp" {
+		fmt.Printf("invalid syslog protocol: %s. Use 'udp' or 'tcp'.", protocol)
+		return nil, nil
+	}
+	connStr := fmt.Sprintf("%s:%d", host, port)
+	syslogWriter, err := srslog.Dial(protocol, connStr, srslog.LOG_INFO, loggerName)
+	if err != nil {
+		fmt.Printf("failed to connect to syslog: %v", err)
+		return nil, nil
+	}
+
+	destroyFunc := func() {
+		if syslogWriter != nil {
+			syslogWriter.Close() // Properly close the syslog writer
+		}
+	}
+
+	// Return a logger that writes to syslog
+	return syslogWriter, destroyFunc
+}
+
+// createCustomFileLogger initializes a custom file logger with rotation support
+func createCustomFileLogger(
+	loggerName,
+	logDir string,
+	rotateBySize bool,
+	maxSize int,
+	maxLogFiles int,
+	rotationInterval time.Duration,
+	EnableConsoleLog bool) (*log.Logger, func()) {
+
+	// Ensure the log directory exists
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.Fatalf("failed to create log directory: %v", err)
+	}
+
+	// Open the log file
+	fileName := filepath.Join(logDir, "kodo.log")
+	logFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("failed to open log file: %v", err)
+	}
+
+	// Combine log file and console output
+	var multiWriter io.Writer
+	if EnableConsoleLog {
+		multiWriter = io.MultiWriter(logFile, os.Stdout)
+	} else {
+		multiWriter = io.MultiWriter(logFile)
+	}
+
+	// Start a goroutine for log rotation
+	var quitRotation = false
+	go func() {
+
+		cleanupLogFiles(logDir, maxLogFiles)
+		// get the current hour
+		lastHour := time.Now().Hour()
+		for {
+			if quitRotation {
+				return
+			}
+			if rotateBySize {
+				// Rotate by size
+				fileInfo, err := logFile.Stat()
+				if err == nil && fileInfo.Size() >= int64(maxSize) {
+					rotateLogFile(logFile, fileName)
+					cleanupLogFiles(logDir, maxLogFiles) // Clean up old log files
+				}
+				time.Sleep(10 * time.Second) // Check periodically
+			} else {
+				// Rotate by time
+				currentHour := time.Now().Hour()
+				if currentHour != lastHour {
+					if (currentHour % int(rotationInterval.Hours())) == 0 {
+						fmt.Println("rotating log file by time")
+						rotateLogFile(logFile, fileName)
+						cleanupLogFiles(logDir, maxLogFiles) // Clean up old log files
+					}
+					lastHour = currentHour
+				}
+				time.Sleep(1 * time.Second) // Check periodically
+			}
+		}
+	}()
+
+	destroyFunc := func() {
+		quitRotation = true
+		if logFile != nil {
+			logFile.Close()
+		}
+	}
+	// Create and return the logger
+	return log.New(multiWriter, loggerName+": ", log.LstdFlags|log.Lshortfile), destroyFunc
+}
+
+func cleanupLogFiles(logOutputFolder string, maxLogFiles int) {
+	files, err := os.ReadDir(logOutputFolder)
+	if err != nil {
+		fmt.Printf("failed to read log output folder: %v\n", err)
+		return
+	}
+
+	var logFiles []string
+	for _, file := range files {
+		if file.Name() != "kodo.log" && !file.IsDir() {
+			logFiles = append(logFiles, file.Name())
+		}
+	}
+
+	// Sort log files by filename
+	sort.Strings(logFiles)
+
+	// Keep only the newest maxLogFiles copies
+	if len(logFiles) > maxLogFiles {
+		filesToDelete := logFiles[:len(logFiles)-maxLogFiles]
+		for _, file := range filesToDelete {
+			filePath := filepath.Join(logOutputFolder, file)
+			if err := os.Remove(filePath); err != nil {
+				fmt.Printf("failed to delete old log file %s: %v", filePath, err)
+			}
+		}
+	}
+}
+
+// rotateLogFile handles log file rotation
+func rotateLogFile(logFile *os.File, fileName string) {
+	// Close the current log file
+	err := logFile.Close()
+	if err != nil {
+		fmt.Printf("log rotation: failed to closed current log file: %v\n", err)
+		return
+	}
+
+	// Rename the current log file with a timestamp
+	timestamp := time.Now().Format("20060102-15")
+	rotatedFileName := fmt.Sprintf("%s.%s", fileName, timestamp)
+	if err := os.Rename(fileName, rotatedFileName); err != nil {
+		fmt.Printf("log rotation: failed to rotate log file: %v", err)
+	}
+
+	// Open a new log file
+	newLogFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("log rotation: failed to open new log file: %v", err)
+	}
+
+	// Update the log file reference
+	*logFile = *newLogFile
 }
