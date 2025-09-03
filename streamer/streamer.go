@@ -236,6 +236,7 @@ func setupSigHandler(new_scanner **downloader.SftpScanner, streamers []*SftpStre
 }
 
 func NewStreamer(streamer_config config.StreamerConfig, loggerInstance *logger.Logger) {
+	stream_manager_logger = loggerInstance
 	// tempfolder = tf
 	streamers := make([]*SftpStreamer, streamer_config.Worker)
 	var new_scanner *downloader.SftpScanner
