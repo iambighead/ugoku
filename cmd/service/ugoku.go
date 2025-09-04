@@ -33,7 +33,9 @@ func startDownloaders(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d downloaders", downloader_started))
+	if downloader_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d downloaders", downloader_started))
+	}
 
 	if downloader_started == 0 {
 		os.Exit(0)
@@ -51,7 +53,9 @@ func startUploaders(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d uploaders", uploader_started))
+	if uploader_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d uploaders", uploader_started))
+	}
 
 	if uploader_started == 0 {
 		os.Exit(0)
@@ -69,7 +73,9 @@ func startSyncers(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d syncers", syncer_started))
+	if syncer_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d syncers", syncer_started))
+	}
 
 	if syncer_started == 0 {
 		os.Exit(0)
@@ -87,7 +93,9 @@ func startStreamers(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d streamers", streamer_started))
+	if streamer_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d streamers", streamer_started))
+	}
 
 	if streamer_started == 0 {
 		os.Exit(0)
@@ -107,7 +115,9 @@ func startDownloadersService(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d downloaders", downloader_started))
+	if downloader_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d downloaders", downloader_started))
+	}
 }
 
 func startUploadersService(master_config config.MasterConfig) {
@@ -120,7 +130,9 @@ func startUploadersService(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d uploaders", uploader_started))
+	if uploader_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d uploaders", uploader_started))
+	}
 }
 
 func startSyncersService(master_config config.MasterConfig) {
@@ -133,7 +145,9 @@ func startSyncersService(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d syncers", syncer_started))
+	if syncer_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d syncers", syncer_started))
+	}
 }
 
 func startStreamersService(master_config config.MasterConfig) {
@@ -146,7 +160,9 @@ func startStreamersService(master_config config.MasterConfig) {
 		}
 	}
 
-	main_logger.Infof(fmt.Sprintf("started %d streamers", streamer_started))
+	if streamer_started > 0 {
+		main_logger.Infof(fmt.Sprintf("started %d streamers", streamer_started))
+	}
 }
 
 func startServices(master_config config.MasterConfig) {
@@ -161,33 +177,21 @@ func startServices(master_config config.MasterConfig) {
 
 func init() {
 
-	loggerName := "ugoku"
-	loggerLogLevel := "info"
-	loggerLogOutputFolder := "/tmp"
-	loggerRotationBySize := false
-	loggerMaxFileSizeMB := 10
-	loggervMaxLogFiles := 10
-	loggerRotationIntervalHour := 1
-	loggerEnableConsoleLog := true
-	loggerEnableSyslog := false
-	loggerSyslogHost := "localhost"
-	loggervSyslogPort := 514
-	loggerSyslogProtocol := "udp"
+	var logConfig lg.LoggerConfig
+	logConfig.LoggerName = "ugoku"
+	logConfig.Level = "info"
+	logConfig.OutputFolder = "/tmp"
+	logConfig.RotationBySize = false
+	logConfig.MaxFileSizeMB = 10
+	logConfig.MaxLogFiles = 10
+	logConfig.RotationIntervalHour = 1
+	logConfig.EnableConsoleLog = true
+	logConfig.EnableSyslog = false
+	logConfig.SyslogHost = "localhost"
+	logConfig.SyslogPort = 514
+	logConfig.SyslogProtocol = "udp"
 
-	loggerFactory = lg.InitLoggerFactory(
-		loggerName,
-		loggerLogLevel,
-		loggerLogOutputFolder,
-		loggerRotationBySize,
-		loggerMaxFileSizeMB,
-		loggervMaxLogFiles,
-		loggerRotationIntervalHour,
-		loggerEnableConsoleLog,
-		loggerEnableSyslog,
-		loggerSyslogHost,
-		loggervSyslogPort,
-		loggerSyslogProtocol,
-	)
+	loggerFactory = lg.InitLoggerFactoryByObj(logConfig)
 
 	main_logger = loggerFactory("main")
 

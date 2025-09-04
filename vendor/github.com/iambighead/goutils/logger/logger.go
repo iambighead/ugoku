@@ -17,6 +17,21 @@ const LogLevelError = 0
 const LogLevelInfo = 1
 const LogLevelDebug = 2
 
+type LoggerConfig struct {
+	LoggerName           string
+	Level                string
+	EnableConsoleLog     bool
+	EnableSyslog         bool
+	SyslogHost           string
+	SyslogPort           int
+	SyslogProtocol       string // "udp" or "tcp"
+	OutputFolder         string
+	RotationBySize       bool
+	MaxFileSizeMB        int // in bytes
+	MaxLogFiles          int // maximum number of log files to keep
+	RotationIntervalHour int // rotate log every N hours if LogRotationBySize is false
+}
+
 type Logger struct {
 	logger    *log.Logger
 	prefix    string
@@ -24,6 +39,8 @@ type Logger struct {
 	Destroy   func()
 	loglevel  int
 }
+
+// --------------------
 
 func (l *Logger) Debugf(format string, v ...interface{}) {
 	if l.loglevel >= LogLevelDebug {
@@ -56,8 +73,74 @@ func (l *Logger) Errorf(format string, v ...interface{}) {
 	}
 }
 
-// func initLogger(mconfig *config.MasterConfig) *Logger {
-func InitLoggerFactory(
+// ---------------------
+
+// Validate checks if the LoggerConfig is valid and returns an error if it's not
+func Validate(c LoggerConfig) error {
+	// Check required fields
+	if c.LoggerName == "" {
+		return fmt.Errorf("logger name cannot be empty")
+	}
+
+	// Validate log level
+	logLevel := strings.ToLower(c.Level)
+	if logLevel != "error" && logLevel != "info" && logLevel != "debug" {
+		return fmt.Errorf("invalid log level: %s (must be error, info, or debug)", c.Level)
+	}
+
+	// Validate syslog configuration if enabled
+	if c.EnableSyslog {
+		if c.SyslogHost == "" {
+			return fmt.Errorf("syslog host cannot be empty when syslog is enabled")
+		}
+		if c.SyslogPort <= 0 || c.SyslogPort > 65535 {
+			return fmt.Errorf("invalid syslog port: %d (must be between 1 and 65535)", c.SyslogPort)
+		}
+		protocol := strings.ToLower(c.SyslogProtocol)
+		if protocol != "udp" && protocol != "tcp" {
+			return fmt.Errorf("invalid syslog protocol: %s (must be udp or tcp)", c.SyslogProtocol)
+		}
+	}
+
+	// Validate log rotation settings
+	if c.RotationBySize {
+		if c.MaxFileSizeMB <= 0 {
+			return fmt.Errorf("log max file size must be greater than 0 when size-based rotation is enabled")
+		}
+	} else {
+		if c.RotationIntervalHour <= 0 {
+			return fmt.Errorf("log rotation interval must be greater than 0 when time-based rotation is enabled")
+		}
+	}
+
+	if c.MaxLogFiles <= 0 {
+		return fmt.Errorf("maximum number of log files must be greater than 0")
+	}
+
+	return nil
+}
+
+func InitLoggerFactoryByObj(loggerCfg LoggerConfig) func(logname string) *Logger {
+	if err := Validate(loggerCfg); err != nil {
+		log.Fatalf("invalid logger configuration: %v", err)
+	}
+
+	return initLoggerFactory(
+		loggerCfg.LoggerName,
+		loggerCfg.Level,
+		loggerCfg.OutputFolder,
+		loggerCfg.RotationBySize,
+		loggerCfg.MaxFileSizeMB,
+		loggerCfg.MaxLogFiles,
+		loggerCfg.RotationIntervalHour,
+		loggerCfg.EnableConsoleLog,
+		loggerCfg.EnableSyslog,
+		loggerCfg.SyslogHost,
+		loggerCfg.SyslogPort,
+		loggerCfg.SyslogProtocol)
+}
+
+func initLoggerFactory(
 	loggerName string,
 	logLevel string,
 	logOutputFolder string,
@@ -160,7 +243,7 @@ func createCustomFileLogger(
 	}
 
 	// Open the log file
-	fileName := filepath.Join(logDir, "kodo.log")
+	fileName := filepath.Join(logDir, loggerName+".log")
 	logFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalf("failed to open log file: %v", err)
