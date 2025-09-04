@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -42,34 +43,65 @@ type Logger struct {
 
 // --------------------
 
+func getCallerFuncName() string {
+	pc, _, _, ok := runtime.Caller(2) // Caller(2) to get the caller of the function that called getCallerFuncName
+	if !ok {
+		return "unknown"
+	}
+	details := runtime.FuncForPC(pc)
+	if details == nil {
+		return "unknown"
+	}
+	name := details.Name()
+	// Extract just the function name (without package path)
+	lastSlash := strings.LastIndex(name, "/")
+	if lastSlash >= 0 {
+		name = name[lastSlash+1:]
+	}
+	dotIndex := strings.LastIndex(name, ".")
+	if dotIndex >= 0 {
+		name = name[dotIndex+1:]
+	}
+	return name
+}
+
 func (l *Logger) Debugf(format string, v ...interface{}) {
 	if l.loglevel >= LogLevelDebug {
+		caller := getCallerFuncName() + ": "
 		if l.syslogger != nil {
-			l.syslogger.Debug(fmt.Sprintf(l.prefix+"debug: "+format, v...))
+			l.syslogger.Debug(fmt.Sprintf(l.prefix+caller+"debug: "+format, v...))
 		}
 		if l.logger != nil {
-			l.logger.Printf(l.prefix+"debug: "+format, v...)
+			l.logger.Printf(l.prefix+caller+"debug: "+format, v...)
 		}
 	}
 }
 
 func (l *Logger) Infof(format string, v ...interface{}) {
 	if l.loglevel >= LogLevelInfo {
+		caller := ""
+		if l.loglevel >= LogLevelDebug {
+			caller = getCallerFuncName() + ": "
+		}
 		if l.syslogger != nil {
-			l.syslogger.Info(fmt.Sprintf(l.prefix+"info: "+format, v...))
+			l.syslogger.Info(fmt.Sprintf(l.prefix+caller+"info: "+format, v...))
 		}
 		if l.logger != nil {
-			l.logger.Printf(l.prefix+"info: "+format, v...)
+			l.logger.Printf(l.prefix+caller+"info: "+format, v...)
 		}
 	}
 }
 
 func (l *Logger) Errorf(format string, v ...interface{}) {
+	caller := ""
+	if l.loglevel >= LogLevelDebug {
+		caller = getCallerFuncName() + ": "
+	}
 	if l.syslogger != nil {
-		l.syslogger.Err(fmt.Sprintf(l.prefix+"error: "+format, v...))
+		l.syslogger.Err(fmt.Sprintf(l.prefix+caller+"error: "+format, v...))
 	}
 	if l.logger != nil {
-		l.logger.Printf(l.prefix+"error: "+format, v...)
+		l.logger.Printf(l.prefix+caller+"error: "+format, v...)
 	}
 }
 
@@ -299,7 +331,11 @@ func createCustomFileLogger(
 		}
 	}
 	// Create and return the logger
-	return log.New(multiWriter, loggerName+": ", log.LstdFlags|log.Lshortfile), destroyFunc
+	logger := log.New(multiWriter, loggerName+": ", log.LstdFlags|log.Lshortfile)
+	currentFlags := logger.Flags()                               // Get the current flags
+	newFlags := currentFlags &^ (log.Lshortfile | log.Llongfile) // Remove the Lshortfile and Llongfile flags
+	logger.SetFlags(newFlags)                                    // Set the modified flags
+	return logger, destroyFunc
 }
 
 func cleanupLogFiles(logOutputFolder string, maxLogFiles int) {

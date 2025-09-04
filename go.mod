@@ -3,7 +3,7 @@ module github.com/iambighead/ugoku
 go 1.21.4
 
 require (
-	github.com/iambighead/goutils v0.0.8
+	github.com/iambighead/goutils v0.0.10
 	github.com/pkg/sftp v1.13.5
 	golang.org/x/crypto v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
