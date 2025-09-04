@@ -132,7 +132,7 @@ func (scanner *SftpScanner) scan(c chan FileObj, done chan int, scan_one_time_on
 }
 
 func (scanner *SftpScanner) connectAndGetClients() error {
-	scanner.logger.Debugf(fmt.Sprintf("connecting to server %s with user %s", scanner.SourceServer.Ip, scanner.SourceServer.User))
+	scanner.logger.Debugf(fmt.Sprintf("scanner connecting to server %s with user %s", scanner.SourceServer.Ip, scanner.SourceServer.User))
 	ssh_client, sftp_client, err := sftplibs.ConnectSftpServer(
 		scanner.SourceServer.Ip,
 		scanner.SourceServer.Port,
@@ -143,7 +143,7 @@ func (scanner *SftpScanner) connectAndGetClients() error {
 	if err != nil {
 		return err
 	}
-	scanner.logger.Infof(fmt.Sprintf("connected to server %s with user %s", scanner.SourceServer.Ip, scanner.SourceServer.User))
+	scanner.logger.Infof(fmt.Sprintf("scanner connected to server %s with user %s", scanner.SourceServer.Ip, scanner.SourceServer.User))
 	scanner.ssh_client = ssh_client
 	scanner.sftp_client = sftp_client
 	return nil
