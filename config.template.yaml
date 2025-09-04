@@ -3,16 +3,16 @@ general:
 
 logging:
   LogLevel: debug
-  LogOutputFolder: /home/kodo/logs
-  SyslogHost: 127.0.0.1
-  SyslogProtocol: udp
+  LogOutputFolder: /home/ugoku/logs
   RotationIntervalHour: 1
   MaxFileSizeMB: 20
   MaxLogFiles: 5
-  SyslogPort: 514
   RotationBySize: false
   EnableConsoleLog: true
   EnableSyslog: false
+  SyslogHost: 127.0.0.1
+  SyslogPort: 514
+  SyslogProtocol: udp
 
 # Defined a list of downloaders.
 # Each downloader downloads from one server to a local folder.
