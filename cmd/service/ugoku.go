@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -177,30 +178,12 @@ func startServices(master_config config.MasterConfig) {
 
 func init() {
 
-	var logConfig lg.LoggerConfig
-	logConfig.LoggerName = "ugoku"
-	logConfig.Level = "info"
-	logConfig.OutputFolder = "/tmp"
-	logConfig.RotationBySize = false
-	logConfig.MaxFileSizeMB = 10
-	logConfig.MaxLogFiles = 10
-	logConfig.RotationIntervalHour = 1
-	logConfig.EnableConsoleLog = true
-	logConfig.EnableSyslog = false
-	logConfig.SyslogHost = "localhost"
-	logConfig.SyslogPort = 514
-	logConfig.SyslogProtocol = "udp"
-
-	loggerFactory = lg.InitLoggerFactoryByObj(logConfig)
-
-	main_logger = loggerFactory("main")
-
 	// logger.Init("ugoku.log", "UGOKU_LOG_LEVEL")
 	// main_logger = logger.NewLogger("main")
 
 	ex, err := os.Executable()
 	if err != nil {
-		main_logger.Errorf("unable to get executable path")
+		log.Fatalf("unable to get executable path")
 		os.Exit(1)
 	}
 
@@ -209,8 +192,26 @@ func init() {
 		config_path := filepath.Join(filepath.Dir(ex), "config.yaml")
 		master_config, err = config.ReadConfig(config_path)
 		if err != nil {
-			main_logger.Errorf("failed to read config: %v", err)
+			log.Fatalf("failed to read config: %v", err)
 		}
+
+		var logConfig lg.LoggerConfig
+		logConfig.LoggerName = "ugoku"
+		logConfig.Level = master_config.Logging.LogLevel
+		logConfig.OutputFolder = master_config.Logging.LogOutputFolder
+		logConfig.RotationBySize = master_config.Logging.RotationBySize
+		logConfig.MaxFileSizeMB = master_config.Logging.MaxFileSizeMB
+		logConfig.MaxLogFiles = master_config.Logging.MaxLogFiles
+		logConfig.RotationIntervalHour = master_config.Logging.RotationIntervalHour
+		logConfig.EnableConsoleLog = master_config.Logging.EnableConsoleLog
+		logConfig.EnableSyslog = master_config.Logging.EnableSyslog
+		logConfig.SyslogHost = master_config.Logging.SyslogHost
+		logConfig.SyslogPort = master_config.Logging.SyslogPort
+		logConfig.SyslogProtocol = master_config.Logging.SyslogProtocol
+
+		loggerFactory = lg.InitLoggerFactoryByObj(logConfig)
+
+		main_logger = loggerFactory("main")
 	}
 }
 

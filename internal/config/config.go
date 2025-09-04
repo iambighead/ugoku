@@ -80,6 +80,21 @@ type StreamerConfig struct {
 type GeneralConfig struct {
 	TempFolder string
 }
+
+type LoggingConfig struct {
+	LogLevel             string `yaml:"LogLevel"             json:"LogLevel"` // 0: Error, 1: Info, 2: Debug
+	LogOutputFolder      string `yaml:"LogOutputFolder"      json:"LogOutputFolder"`
+	SyslogHost           string `yaml:"SyslogHost"           json:"SyslogHost"`
+	SyslogProtocol       string `yaml:"SyslogProtocol"       json:"SyslogProtocol"`
+	RotationIntervalHour int    `yaml:"RotationIntervalHour" json:"RotationIntervalHour"`
+	MaxFileSizeMB        int    `yaml:"MaxFileSizeMB"        json:"MaxFileSizeMB"`
+	MaxLogFiles          int    `yaml:"MaxLogFiles"          json:"MaxLogFiles"` // Maximum number of log files to keep
+	SyslogPort           int    `yaml:"SyslogPort"           json:"SyslogPort"`
+	RotationBySize       bool   `yaml:"RotationBySize"       json:"RotationBySize"`
+	EnableConsoleLog     bool   `yaml:"EnableConsoleLog"     json:"EnableConsoleLog"`
+	EnableSyslog         bool   `yaml:"EnableSyslog"         json:"EnableSyslog"`
+}
+
 type MasterConfig struct {
 	Servers     []ServerConfig
 	Downloaders []DownloaderConfig
@@ -87,6 +102,7 @@ type MasterConfig struct {
 	Syncers     []SyncerConfig
 	Streamers   []StreamerConfig
 	General     GeneralConfig
+	Logging     LoggingConfig
 }
 
 func validateConfig(cfg MasterConfig) error {
