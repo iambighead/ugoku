@@ -1,0 +1,19 @@
+ls:
+  .go: snake_case
+  .mod: kebab-case
+  .sum: kebab-case
+
+ignore:
+  - vendor
+  - .git
+  - node_modules
+  - dist
+  - build
+
+dirs:
+  cmd: kebab-case
+  pkg: kebab-case
+  internal: kebab-case
+  api: kebab-case
+  test: kebab-case
+  docs: kebab-case
